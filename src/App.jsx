@@ -8,18 +8,17 @@ import FloodResilience from './views/FloodResilience';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('report');
+  const [incidents, setIncidents] = useState([]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 font-sans text-slate-800">
+    <div className="app-shell">
       <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
-      
-      <main className="flex-grow p-4 md:p-6 overflow-auto">
-        {activeTab === 'report' && <ReportPortal />}
-        {activeTab === 'dashboard' && <SafetyDashboard />}
+      <main className="app-main">
+        {activeTab === 'report' && <ReportPortal onSubmit={(incident) => setIncidents((items) => [incident, ...items])} />}
+        {activeTab === 'dashboard' && <SafetyDashboard newIncidents={incidents} />}
         {activeTab === 'evacuation' && <EvacuationMap />}
         {activeTab === 'flood' && <FloodResilience />}
       </main>
-
       <Disclaimer />
     </div>
   );
