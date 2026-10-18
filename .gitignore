@@ -12,3 +12,17 @@ dist/
 
 # Debug logs
 npm-debug.log*
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+
+# Python test and tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
