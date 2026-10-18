@@ -1,39 +1,140 @@
-﻿import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState, useMemo } from 'react';
 import { initialIncidents } from '../data/mockData';
 import { classifyIncident } from '../data/incidentTriage';
+import './SafetyDashboard.css';
 
 const getProfile = (incident) => incident.riskProfile || classifyIncident(incident.desc);
-const initials = (name = 'Unassigned') => name === 'Unassigned' ? '--' : name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+
+const initials = (name = 'Unassigned') => {
+  if (!name || name === 'Unassigned') return '--';
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+};
+
 const formatRemaining = (milliseconds) => {
   const totalSeconds = Math.ceil(Math.max(0, milliseconds) / 1000);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-  return hours ? `${hours}h ${String(minutes).padStart(2, '0')}m` : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  return hours
+    ? `${hours}h ${String(minutes).padStart(2, '0')}m`
+    : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
-function IncidentCard({ incident, onClaim, onRespond, onVerify, now }) {
+function IncidentCard({ incident, onClaim, onRespond, onVerify, now, variant = 'standard' }) {
   const profile = getProfile(incident);
-  const deadline = incident.time + profile.interveneMinutes * 60000;
+  const interveneDuration = (profile.interveneMinutes ?? 15) * 60000;
+  const deadline = incident.time + interveneDuration;
   const left = deadline - now;
-  const overdue = left <= 0 && incident.status !== 'Responded' && incident.status !== 'Resolved';
-  const escalationDue = profile.escalateMinutes ? incident.time + profile.escalateMinutes * 60000 : null;
-  const escalated = escalationDue && now >= escalationDue && incident.status !== 'Responded' && incident.status !== 'Resolved';
-  return <article className={`incident-card risk-${incident.risk.toLowerCase()}`}>
-    <div className="incident-top"><span className={`risk-pill risk-pill-${incident.risk.toLowerCase()}`}><i />{incident.risk} / P{profile.priority}</span><span className="ticket-id">{incident.id}</span></div>
-    <h3>{incident.desc}</h3><p className="incident-location">&#8226; {incident.location}</p>
-    {incident.image && <img className="incident-photo" src={incident.image} alt="Resident submitted evidence" />}
-    <div className="incident-meta"><span>Reported {new Date(incident.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span><span>Intervention SLA</span></div>
-    <div className={`sla-clock ${overdue ? 'sla-overdue' : ''}`}><span>{incident.status === 'Responded' ? 'INTERVENTION RECORDED' : overdue ? 'OVERDUE' : 'TIME TO INTERVENE'}</span><strong>{incident.status === 'Responded' ? 'Responded' : overdue ? `Late ${formatRemaining(-left)}` : formatRemaining(left)}</strong></div>
-    <div className="team-routing"><span>ROUTED TEAMS</span><p>{profile.teams.join(' / ')}</p></div>
-    <div className="sla-detail">{profile.sla}</div>
-    {escalationDue && <div className={`escalation-state ${escalated ? 'is-escalated' : ''}`}>{escalated ? 'ESCALATED TO C-LEVEL / EXECUTIVE' : `Executive escalation in ${formatRemaining(escalationDue - now)}`}</div>}
-    <div className="assignee-row"><span className="avatar">{initials(incident.assignee)}</span><span>{incident.assignee || 'Unassigned'}</span></div>
-    {incident.status === 'Reported' && <button className="card-action" onClick={() => onClaim(incident.id)}>Accept and claim <span>&gt;</span></button>}
-    {incident.status === 'Assigned' && <button className="card-action" onClick={() => onRespond(incident.id)}>Record intervention / respond <span>&gt;</span></button>}
-    {incident.status === 'Responded' && <button className="card-action" onClick={() => onVerify(incident)}>Verify resolution <span>&gt;</span></button>}
-    {incident.status === 'Resolved' && <div className="resolved-note">Resolved{incident.evidence ? ` / ${incident.evidence}` : ''}</div>}
-  </article>;
+  const isFinished = incident.status === 'Responded' || incident.status === 'Resolved';
+  const overdue = left <= 0 && !isFinished;
+
+  const escalateDuration = profile.escalateMinutes ? profile.escalateMinutes * 60000 : null;
+  const escalationDue = escalateDuration ? incident.time + escalateDuration : null;
+  const escalated = escalationDue && now >= escalationDue && !isFinished;
+
+  const riskKey = (incident.risk || 'Low').toLowerCase();
+
+  return (
+    <article className={`priority-card risk-border-${riskKey} ${overdue ? 'card-breached' : ''} ${variant === 'compact' ? 'card-compact' : ''}`}>
+      <div className="card-header-row">
+        <div className="header-tags">
+          <span className={`ios-badge badge-${riskKey}`}>
+            <span className="badge-pulse-dot" />
+            {incident.risk.toUpperCase()} • P{profile.priority ?? 3}
+          </span>
+          <span className="incident-token">{incident.id}</span>
+        </div>
+        <span className="incident-clock">
+          {new Date(incident.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </span>
+      </div>
+
+      <div className="card-main-content">
+        <h3 className="incident-title">{incident.desc}</h3>
+        <p className="incident-location-pin">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+            <circle cx="12" cy="10" r="3" />
+          </svg>
+          <span>{incident.location}</span>
+        </p>
+
+        {incident.image && (
+          <div className="card-media-shell">
+            <img className="card-media-img" src={incident.image} alt="Field evidence" />
+          </div>
+        )}
+
+        <div className={`sla-ribbon ${overdue ? 'sla-breach' : ''} ${incident.status === 'Responded' ? 'sla-cleared' : ''}`}>
+          <div className="sla-ribbon-split">
+            <span className="sla-ribbon-label">
+              {incident.status === 'Responded' ? 'INTERVENTION LOGGED' : overdue ? 'SLA EXPIRED' : 'SLA DEADLINE'}
+            </span>
+            <span className="sla-ribbon-countdown">
+              {incident.status === 'Responded'
+                ? 'Recorded'
+                : overdue
+                ? `Late ${formatRemaining(-left)}`
+                : formatRemaining(left)}
+            </span>
+          </div>
+          <div className="sla-ribbon-sub">{profile.sla}</div>
+        </div>
+
+        {escalationDue && (
+          <div className={`escalation-pill ${escalated ? 'is-escalated' : ''}`}>
+            <span className="escalation-dot" />
+            <span>
+              {escalated ? 'Executive Escalation Dispatched' : `Escalation in ${formatRemaining(escalationDue - now)}`}
+            </span>
+          </div>
+        )}
+
+        <div className="card-footer-info">
+          <div className="agent-wrap">
+            <span className="agent-circle">{initials(incident.assignee)}</span>
+            <span className="agent-name-text">{incident.assignee || 'Unassigned'}</span>
+          </div>
+          <div className="units-wrap">
+            <span className="units-caption">DISPATCH</span>
+            <span className="units-text">{profile.teams?.join(', ') || 'Facility Staff'}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="card-action-bar">
+        {incident.status === 'Reported' && (
+          <button type="button" className="btn-action-primary" onClick={() => onClaim(incident.id)}>
+            Claim Incident &rarr;
+          </button>
+        )}
+        {incident.status === 'Assigned' && (
+          <button type="button" className="btn-action-respond" onClick={() => onRespond(incident.id)}>
+            Record Intervention
+          </button>
+        )}
+        {incident.status === 'Responded' && (
+          <button type="button" className="btn-action-verify" onClick={() => onVerify(incident)}>
+            Verify &amp; Close Ticket
+          </button>
+        )}
+        {incident.status === 'Resolved' && (
+          <div className="resolved-banner">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            <span>Verified: {incident.evidence || 'Field resolution logged'}</span>
+          </div>
+        )}
+      </div>
+    </article>
+  );
 }
 
 export default function SafetyDashboard({ newIncidents = [] }) {
@@ -43,26 +144,511 @@ export default function SafetyDashboard({ newIncidents = [] }) {
   const [evidencePhoto, setEvidencePhoto] = useState('');
   const [now, setNow] = useState(Date.now());
   const [role, setRole] = useState('Property Staff');
-  useEffect(() => setIncidents((items) => [...newIncidents.filter((newItem) => !items.some((item) => item.id === newItem.id)), ...items]), [newIncidents]);
-  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
+  const [viewMode, setViewMode] = useState('priority'); // 'priority' or 'pipeline'
 
-  const claim = (id) => setIncidents((items) => items.map((item) => item.id === id ? { ...item, status: 'Assigned', assignee: 'You' } : item));
-  const respond = (id) => setIncidents((items) => items.map((item) => item.id === id ? { ...item, status: 'Responded', respondedAt: Date.now() } : item));
+  useEffect(() => {
+    setIncidents((items) => [
+      ...newIncidents.filter((newItem) => !items.some((item) => item.id === newItem.id)),
+      ...items
+    ]);
+  }, [newIncidents]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const claim = (id) =>
+    setIncidents((items) =>
+      items.map((item) => (item.id === id ? { ...item, status: 'Assigned', assignee: 'Duty Officer' } : item))
+    );
+
+  const respond = (id) =>
+    setIncidents((items) =>
+      items.map((item) => (item.id === id ? { ...item, status: 'Responded', respondedAt: Date.now() } : item))
+    );
+
+  const handleEvidencePhoto = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (evidencePhoto && evidencePhoto.startsWith('blob:')) {
+        URL.revokeObjectURL(evidencePhoto);
+      }
+      setEvidencePhoto(URL.createObjectURL(file));
+    }
+  };
+
+  const closeModal = () => {
+    if (evidencePhoto && evidencePhoto.startsWith('blob:')) {
+      URL.revokeObjectURL(evidencePhoto);
+    }
+    setVerifyModal(null);
+    setEvidenceMsg('');
+    setEvidencePhoto('');
+  };
+
   const submitVerification = (event) => {
     event.preventDefault();
     if (!evidenceMsg.trim() && !evidencePhoto) return;
-    setIncidents((items) => items.map((item) => item.id === verifyModal.id ? { ...item, status: 'Resolved', evidence: evidenceMsg.trim() || 'Photo evidence uploaded', evidencePhoto } : item));
-    setVerifyModal(null); setEvidenceMsg(''); setEvidencePhoto('');
+    setIncidents((items) =>
+      items.map((item) =>
+        item.id === verifyModal.id
+          ? {
+              ...item,
+              status: 'Resolved',
+              evidence: evidenceMsg.trim() || 'Visual audit confirmed',
+              evidencePhoto
+            }
+          : item
+      )
+    );
+    closeModal();
   };
-  const active = incidents.filter((item) => item.status !== 'Resolved');
-  const escalated = active.filter((item) => { const profile = getProfile(item); return profile.escalateMinutes && now >= item.time + profile.escalateMinutes * 60000 && item.status !== 'Responded'; });
-  return <div className="dashboard-wrap">
-    <div className="dashboard-header"><div><p className="eyebrow">PROPERTY OPERATIONS / SAFETY</p><h1>Safety intelligence</h1><p>AI-assisted triage, responsible team routing and response deadlines.</p></div><div className="dashboard-tools"><span className="live-indicator"><i /> LIVE QUEUE</span><label className="role-select">Viewing as <select value={role} onChange={(event) => setRole(event.target.value)}><option>Property Staff</option><option>Executive</option></select></label></div></div>
-    <div className="metric-strip"><div className="metric-tile"><span>Open incidents</span><strong>{active.length.toString().padStart(2, '0')}</strong><small>Across all risk levels</small></div><div className="metric-tile metric-high"><span>High / critical</span><strong>{active.filter((item) => ['High', 'Critical'].includes(item.risk)).length.toString().padStart(2, '0')}</strong><small>Priority response queue</small></div><div className="metric-tile metric-overdue"><span>Executive escalations</span><strong>{escalated.length.toString().padStart(2, '0')}</strong><small>{escalated.length ? 'Immediate follow-up required' : 'No overdue escalation thresholds'}</small></div><div className="metric-tile"><span>Resolved</span><strong>{incidents.filter((item) => item.status === 'Resolved').length.toString().padStart(2, '0')}</strong><small>With verification evidence</small></div></div>
-    {escalated.length > 0 && <div className="escalation-banner"><span>!</span><div><strong>Executive escalation required</strong><small>{escalated.map((item) => `${item.id} (${item.risk})`).join(', ')} missed its intervention threshold without a response.</small></div><span className="escalation-tag">{role === 'Executive' ? 'EXECUTIVE VIEW' : 'ESCALATED'}</span></div>}
-    <section className="incident-section"><div className="section-heading"><div><h2>Prioritized incident queue</h2><p>P1 items first. Claim, record intervention, then verify resolution with evidence.</p></div><span className="queue-count">{active.length} ACTIVE</span></div>
-      <div className="incident-columns">{['Reported', 'Assigned', 'Responded', 'Resolved'].map((status) => <div className="incident-column" key={status}><div className="column-heading"><span>{status}</span><span className="column-count">{incidents.filter((item) => item.status === status).length}</span></div><div className="card-stack">{incidents.filter((item) => item.status === status).sort((a, b) => getProfile(a).priority - getProfile(b).priority || a.time - b.time).map((incident) => <IncidentCard key={incident.id} incident={incident} now={now} onClaim={claim} onRespond={respond} onVerify={setVerifyModal} />)}{incidents.filter((item) => item.status === status).length === 0 && <div className="empty-column">No {status.toLowerCase()} incidents</div>}</div></div>)}</div>
-    </section>
-    {verifyModal && <div className="modal-backdrop" role="presentation"><form className="verify-modal" onSubmit={submitVerification}><button type="button" className="modal-close" onClick={() => setVerifyModal(null)} aria-label="Close">x</button><p className="eyebrow">CASE CLOSURE</p><h2>Verify resolution</h2><p className="modal-context"><strong>{verifyModal.id}</strong> / {verifyModal.location}</p><label className="field-label">Resolution notes <span className="optional">Required if no photo</span><textarea value={evidenceMsg} onChange={(event) => setEvidenceMsg(event.target.value)} placeholder="Describe corrective action and what you verified..." rows="4" /></label><label className="field-label">Verification photo <span className="optional">Optional</span><input className="evidence-input" type="file" accept="image/*" capture="environment" onChange={(event) => { const file = event.target.files?.[0]; if (file) setEvidencePhoto(URL.createObjectURL(file)); }} /></label>{evidencePhoto && <img className="evidence-preview" src={evidencePhoto} alt="Verification evidence" />}<div className="modal-actions"><button type="button" className="button button-secondary" onClick={() => setVerifyModal(null)}>Cancel</button><button className="button button-primary" type="submit" disabled={!evidenceMsg.trim() && !evidencePhoto}>Verify and close</button></div></form></div>}
-  </div>;
+
+  const active = useMemo(() => incidents.filter((item) => item.status !== 'Resolved'), [incidents]);
+
+  const urgentIncident = useMemo(() => {
+    return active
+      .filter((i) => i.status !== 'Responded')
+      .sort((a, b) => {
+        const pA = getProfile(a).priority ?? 9;
+        const pB = getProfile(b).priority ?? 9;
+        return pA - pB || a.time - b.time;
+      })[0] || null;
+  }, [active]);
+
+  const escalated = useMemo(
+    () =>
+      active.filter((item) => {
+        const profile = getProfile(item);
+        return (
+          profile.escalateMinutes &&
+          now >= item.time + profile.escalateMinutes * 60000 &&
+          item.status !== 'Responded'
+        );
+      }),
+    [active, now]
+  );
+
+  const highCriticalCount = useMemo(
+    () => active.filter((item) => ['High', 'Critical'].includes(item.risk)).length,
+    [active]
+  );
+
+  const resolvedCount = useMemo(
+    () => incidents.filter((item) => item.status === 'Resolved').length,
+    [incidents]
+  );
+
+  // Groupings for Priority View
+  const criticalTier = useMemo(
+    () => active.filter((item) => ['Critical', 'High'].includes(item.risk)),
+    [active]
+  );
+  const moderateTier = useMemo(
+    () => active.filter((item) => item.risk === 'Moderate' || item.risk === 'Medium'),
+    [active]
+  );
+  const lowTier = useMemo(
+    () => active.filter((item) => item.risk === 'Low'),
+    [active]
+  );
+  const resolvedList = useMemo(
+    () => incidents.filter((item) => item.status === 'Resolved'),
+    [incidents]
+  );
+
+  const pipelineStages = ['Reported', 'Assigned', 'Responded', 'Resolved'];
+
+  return (
+    <div className="priority-dashboard-layout">
+      {/* Top Header */}
+      <header className="dashboard-hero-header">
+        <div>
+          <div className="header-kicker-line">
+            <span className="kicker-tag">INCIDENT COMMAND CENTER</span>
+            <span className="kicker-sep">•</span>
+            <span className="kicker-sub">REAL-TIME RISK TRIAGE</span>
+          </div>
+          <h1 className="header-primary-title">Operational Safety Intelligence</h1>
+          <p className="header-sub-copy">
+            Priority-tiered dispatch matrix. Immediate life-safety items take top routing precedence.
+          </p>
+        </div>
+
+        <div className="header-widget-group">
+          <div className="status-live-capsule">
+            <span className="live-halo" />
+            LIVE DISPATCH PIPELINE
+          </div>
+          <div className="perspective-dropdown-box">
+            <span className="dropdown-label">Console:</span>
+            <select
+              className="role-native-select"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+            >
+              <option>Property Staff</option>
+              <option>Executive</option>
+            </select>
+          </div>
+        </div>
+      </header>
+
+      {/* Asymmetric Tiered KPI Cards */}
+      <section className="kpi-hierarchy-grid">
+        {/* Dominant Urgent KPI Card */}
+        <div className={`kpi-hero-card ${highCriticalCount > 0 ? 'kpi-hero-active' : ''}`}>
+          <div className="kpi-hero-head">
+            <div>
+              <span className="kpi-hero-label">HIGH &amp; CRITICAL DISPATCH</span>
+              <span className="kpi-hero-sub">Immediate action required</span>
+            </div>
+            <span className="kpi-hero-badge">{highCriticalCount > 0 ? 'ACTION NEEDED' : 'NOMINAL'}</span>
+          </div>
+          <div className="kpi-hero-body">
+            <span className="kpi-hero-number">{String(highCriticalCount).padStart(2, '0')}</span>
+            <div className="kpi-hero-desc">
+              <strong>{highCriticalCount} urgent incident{highCriticalCount === 1 ? '' : 's'}</strong> active across property sectors. P1/P2 response clocks ticking.
+            </div>
+          </div>
+        </div>
+
+        {/* Supporting Secondary Metric Cards */}
+        <div className="kpi-card-subtle">
+          <div className="subtle-label-row">
+            <span>Executive Escalations</span>
+            <span className={`subtle-indicator ${escalated.length ? 'bg-danger' : 'bg-gray'}`} />
+          </div>
+          <span className={`subtle-number ${escalated.length ? 'text-danger' : ''}`}>
+            {String(escalated.length).padStart(2, '0')}
+          </span>
+          <span className="subtle-note">{escalated.length ? 'Threshold breached' : 'All SLAs within target'}</span>
+        </div>
+
+        <div className="kpi-card-subtle">
+          <div className="subtle-label-row">
+            <span>Total Open Tickets</span>
+            <span className="subtle-indicator bg-info" />
+          </div>
+          <span className="subtle-number">{String(active.length).padStart(2, '0')}</span>
+          <span className="subtle-note">Across all risk tiers</span>
+        </div>
+
+        <div className="kpi-card-subtle">
+          <div className="subtle-label-row">
+            <span>Verified Resolved</span>
+            <span className="subtle-indicator bg-success" />
+          </div>
+          <span className="subtle-number text-success">{String(resolvedCount).padStart(2, '0')}</span>
+          <span className="subtle-note">Audit verified field closures</span>
+        </div>
+      </section>
+
+      {/* Immediate Attention Hero Spotlight */}
+      {urgentIncident && (
+        <section className="spotlight-hero-card">
+          <div className="spotlight-eyebrow-bar">
+            <div className="spotlight-lead">
+              <span className="spotlight-flame">⚡</span>
+              <span className="spotlight-tag">HIGHEST PRIORITY INCIDENT REQUIRES DISPATCH</span>
+            </div>
+            <span className="spotlight-time">Reported {new Date(urgentIncident.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+
+          <div className="spotlight-body-layout">
+            <div className="spotlight-main">
+              <div className="spotlight-pill-row">
+                <span className={`spotlight-badge risk-${urgentIncident.risk.toLowerCase()}`}>
+                  {urgentIncident.risk.toUpperCase()} SEVERITY • P{getProfile(urgentIncident).priority ?? 1}
+                </span>
+                <span className="spotlight-ticket-id">{urgentIncident.id}</span>
+                <span className="spotlight-status-pill">{urgentIncident.status.toUpperCase()}</span>
+              </div>
+              <h2 className="spotlight-headline">{urgentIncident.desc}</h2>
+              <p className="spotlight-location">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+                <strong>{urgentIncident.location}</strong>
+              </p>
+            </div>
+
+            <div className="spotlight-sidebar-action">
+              <div className="spotlight-sla-box">
+                <span className="sla-caption-text">INTERVENTION TARGET</span>
+                <strong className="sla-countdown-bold">
+                  {formatRemaining((urgentIncident.time + (getProfile(urgentIncident).interveneMinutes ?? 15) * 60000) - now)}
+                </strong>
+                <span className="sla-micro-text">{getProfile(urgentIncident).sla}</span>
+              </div>
+              {urgentIncident.status === 'Reported' && (
+                <button
+                  type="button"
+                  className="spotlight-claim-button"
+                  onClick={() => claim(urgentIncident.id)}
+                >
+                  Claim &amp; Dispatch Units &rarr;
+                </button>
+              )}
+              {urgentIncident.status === 'Assigned' && (
+                <button
+                  type="button"
+                  className="spotlight-claim-button btn-respond"
+                  onClick={() => respond(urgentIncident.id)}
+                >
+                  Log On-Site Response &rarr;
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* View Switcher Deck */}
+      <section className="board-control-row">
+        <div className="board-heading-block">
+          <h2 className="board-primary-heading">
+            {viewMode === 'priority' ? 'Priority Urgency Matrix' : 'Pipeline Stage Workflow'}
+          </h2>
+          <span className="board-total-count">{active.length} active tickets</span>
+        </div>
+
+        <div className="view-mode-segmented">
+          <button
+            type="button"
+            className={`view-segment-btn ${viewMode === 'priority' ? 'is-active' : ''}`}
+            onClick={() => setViewMode('priority')}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+            </svg>
+            Priority Hierarchy View
+          </button>
+          <button
+            type="button"
+            className={`view-segment-btn ${viewMode === 'pipeline' ? 'is-active' : ''}`}
+            onClick={() => setViewMode('pipeline')}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+            </svg>
+            Pipeline Status View
+          </button>
+        </div>
+      </section>
+
+      {/* VIEW 1: PRIORITY HIERARCHY MATRIX */}
+      {viewMode === 'priority' && (
+        <div className="priority-hierarchy-container">
+          {/* TIER 1: CRITICAL & HIGH */}
+          <div className="hierarchy-lane lane-critical">
+            <div className="lane-header-row">
+              <div className="lane-title-cluster">
+                <span className="lane-status-badge badge-critical">TIER 1 • URGENT PRIORITY</span>
+                <span className="lane-subtext">Immediate safety risks &amp; SLA breaches</span>
+              </div>
+              <span className="lane-count-tag">{criticalTier.length}</span>
+            </div>
+
+            <div className="hierarchy-card-deck">
+              {criticalTier.map((incident) => (
+                <IncidentCard
+                  key={incident.id}
+                  incident={incident}
+                  now={now}
+                  onClaim={claim}
+                  onRespond={respond}
+                  onVerify={setVerifyModal}
+                />
+              ))}
+              {criticalTier.length === 0 && (
+                <div className="empty-lane-callout">
+                  <span className="empty-lane-check">✓</span>
+                  <span>No critical incidents active. Safety perimeter secure.</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* TWO COLUMN GRID FOR MODERATE & LOW */}
+          <div className="hierarchy-split-row">
+            {/* TIER 2: MODERATE */}
+            <div className="hierarchy-lane lane-moderate">
+              <div className="lane-header-row">
+                <div className="lane-title-cluster">
+                  <span className="lane-status-badge badge-moderate">TIER 2 • ACTIVE WATCH</span>
+                  <span className="lane-subtext">Water pooling, maintenance hazards</span>
+                </div>
+                <span className="lane-count-tag">{moderateTier.length}</span>
+              </div>
+
+              <div className="hierarchy-card-deck">
+                {moderateTier.map((incident) => (
+                  <IncidentCard
+                    key={incident.id}
+                    incident={incident}
+                    now={now}
+                    onClaim={claim}
+                    onRespond={respond}
+                    onVerify={setVerifyModal}
+                  />
+                ))}
+                {moderateTier.length === 0 && (
+                  <div className="empty-lane-callout">
+                    <span>No moderate incidents currently logged.</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* TIER 3: ROUTINE & RESOLVED */}
+            <div className="hierarchy-lane lane-routine">
+              <div className="lane-header-row">
+                <div className="lane-title-cluster">
+                  <span className="lane-status-badge badge-routine">TIER 3 • ROUTINE &amp; CLOSED</span>
+                  <span className="lane-subtext">Minor tickets &amp; verified resolutions</span>
+                </div>
+                <span className="lane-count-tag">{lowTier.length + resolvedList.length}</span>
+              </div>
+
+              <div className="hierarchy-card-deck">
+                {lowTier.map((incident) => (
+                  <IncidentCard
+                    key={incident.id}
+                    incident={incident}
+                    now={now}
+                    onClaim={claim}
+                    onRespond={respond}
+                    onVerify={setVerifyModal}
+                  />
+                ))}
+                {resolvedList.slice(0, 3).map((incident) => (
+                  <IncidentCard
+                    key={incident.id}
+                    incident={incident}
+                    now={now}
+                    onClaim={claim}
+                    onRespond={respond}
+                    onVerify={setVerifyModal}
+                    variant="compact"
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW 2: PIPELINE STAGES */}
+      {viewMode === 'pipeline' && (
+        <div className="pipeline-kanban-flow">
+          {pipelineStages.map((status) => {
+            const columnItems = incidents
+              .filter((item) => item.status === status)
+              .sort((a, b) => (getProfile(a).priority ?? 9) - (getProfile(b).priority ?? 9) || a.time - b.time);
+
+            return (
+              <div className="pipeline-column-box" key={status}>
+                <div className="column-top-line">
+                  <span className="column-title-label">{status}</span>
+                  <span className="column-count-chip">{columnItems.length}</span>
+                </div>
+                <div className="column-card-stack">
+                  {columnItems.map((incident) => (
+                    <IncidentCard
+                      key={incident.id}
+                      incident={incident}
+                      now={now}
+                      onClaim={claim}
+                      onRespond={respond}
+                      onVerify={setVerifyModal}
+                    />
+                  ))}
+                  {columnItems.length === 0 && (
+                    <div className="empty-pipeline-slot">
+                      <span>No {status.toLowerCase()} tickets</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Verification Modal */}
+      {verifyModal && (
+        <div className="ios-modal-scrim" role="dialog" aria-modal="true">
+          <form className="ios-modal-card" onSubmit={submitVerification}>
+            <div className="modal-header-line">
+              <div>
+                <span className="modal-eyebrow">AUDIT &amp; RESOLUTION CLOSURE</span>
+                <h3 className="modal-lead-title">Field Verification Entry</h3>
+                <p className="modal-target-info">
+                  <strong>{verifyModal.id}</strong> • {verifyModal.location}
+                </p>
+              </div>
+              <button type="button" className="btn-modal-dismiss" onClick={closeModal}>✕</button>
+            </div>
+
+            <div className="modal-form-body">
+              <label className="ios-field-block">
+                <span className="field-headline">Resolution Notes <small>(Required without photo)</small></span>
+                <textarea
+                  className="ios-glass-textarea"
+                  value={evidenceMsg}
+                  onChange={(e) => setEvidenceMsg(e.target.value)}
+                  placeholder="Detail actions taken, hazard removed, or verification notes..."
+                  rows={4}
+                />
+              </label>
+
+              <div className="ios-field-block">
+                <span className="field-headline">Verification Image Capture</span>
+                <label className="ios-glass-dropzone">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg>
+                  <span>Select or snap photo evidence</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="visually-hidden"
+                    onChange={handleEvidencePhoto}
+                  />
+                </label>
+              </div>
+
+              {evidencePhoto && (
+                <div className="preview-modal-wrapper">
+                  <img src={evidencePhoto} alt="Verification preview" />
+                </div>
+              )}
+            </div>
+
+            <div className="modal-actions-tray">
+              <button type="button" className="btn-ios-secondary" onClick={closeModal}>
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn-ios-primary"
+                disabled={!evidenceMsg.trim() && !evidencePhoto}
+              >
+                Sign Off &amp; Close Ticket
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  );
 }

@@ -1,25 +1,27 @@
 import React, { useState } from 'react';
 import Navigation from './components/Navigation';
-import Disclaimer from './components/Disclaimer';
-import ReportPortal from './views/ReportPortal';
 import SafetyDashboard from './views/SafetyDashboard';
+import ReportPortal from './views/ReportPortal';
 import EvacuationMap from './views/EvacuationMap';
 import FloodResilience from './views/FloodResilience';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('report');
-  const [incidents, setIncidents] = useState([]);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [submittedReports, setSubmittedReports] = useState([]);
+
+  const handleReportSubmit = (newReport) => {
+    setSubmittedReports((prev) => [newReport, ...prev]);
+  };
 
   return (
     <div className="app-shell">
-      <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
-      <main className="app-main">
-        {activeTab === 'report' && <ReportPortal onSubmit={(incident) => setIncidents((items) => [incident, ...items])} />}
-        {activeTab === 'dashboard' && <SafetyDashboard newIncidents={incidents} />}
-        {activeTab === 'evacuation' && <EvacuationMap />}
+      <Navigation activeTab={activeTab} onSelectTab={setActiveTab} />
+      <main className="app-content">
+        {activeTab === 'dashboard' && <SafetyDashboard newIncidents={submittedReports} />}
+        {activeTab === 'report' && <ReportPortal onSubmit={handleReportSubmit} />}
+        {activeTab === 'map' && <EvacuationMap />}
         {activeTab === 'flood' && <FloodResilience />}
       </main>
-      <Disclaimer />
     </div>
   );
 }

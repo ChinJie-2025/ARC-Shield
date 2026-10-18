@@ -1,0 +1,146 @@
+.ios-nav-outer {
+  position: sticky;
+  top: 14px;
+  z-index: 99;
+  display: flex;
+  justify-content: center;
+  padding: 0 1.5rem;
+  pointer-events: none;
+}
+
+.ios-nav-capsule {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 1280px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.25rem;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ios-brand-box {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.ios-brand-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #0284c7;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 8px rgba(2, 132, 199, 0.3);
+}
+
+.ios-brand-text {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.brand-primary-name {
+  color: #0f172a;
+}
+
+.brand-dot {
+  color: #cbd5e1;
+}
+
+.brand-secondary-tag {
+  color: #0284c7;
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+}
+
+/* Apple Segmented Bar */
+.ios-segmented-control {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.04);
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.ios-segment-item {
+  background: transparent;
+  border: none;
+  padding: 0.45rem 1.15rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #64748b;
+  border-radius: 999px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ios-segment-item:hover {
+  color: #0f172a;
+}
+
+.ios-segment-item.is-active {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+.ios-system-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #059669;
+  background: rgba(16, 185, 129, 0.08);
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.ios-badge-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+@media (max-width: 900px) {
+  .ios-nav-outer {
+    padding: 0 0.75rem;
+    top: 8px;
+  }
+  .ios-nav-capsule {
+    height: auto;
+    border-radius: 20px;
+    padding: 0.75rem 1rem;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .ios-system-badge {
+    display: none;
+  }
+  .ios-segmented-control {
+    width: 100%;
+    overflow-x: auto;
+    justify-content: space-between;
+  }
+  .ios-segment-item {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.75rem;
+  }
+}
