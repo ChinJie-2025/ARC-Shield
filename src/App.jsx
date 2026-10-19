@@ -10,7 +10,6 @@ import FloodResilience from './views/FloodResilience';
 import { initialIncidents } from './data/mockData';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
 
   // Authenticated user session
@@ -18,22 +17,24 @@ export default function App() {
     try {
       const savedUser = localStorage.getItem('arc_shield_user');
       return savedUser
-        ? JSON.parse(savedUser)
+        ? (() => { const user = JSON.parse(savedUser); return { ...user, role: user.role === 'Executive' ? 'Executive' : 'Resident' }; })()
         : {
-            role: 'Property Staff',
-            name: 'Officer Alex Tan',
-            id: 'STAFF-8841',
-            avatar: 'AT',
+            role: 'Resident',
+            name: 'Resident User',
+            id: 'RES-1001',
+            avatar: 'RU',
           };
     } catch {
       return {
-        role: 'Property Staff',
-        name: 'Officer Alex Tan',
-        id: 'STAFF-8841',
-        avatar: 'AT',
+        role: 'Resident',
+        name: 'Resident User',
+        id: 'RES-1001',
+        avatar: 'RU',
       };
     }
   });
+
+  const [activeTab, setActiveTab] = useState(() => currentUser.role === 'Executive' ? 'dashboard' : 'report');
 
   const [incidents, setIncidents] = useState(() => {
     try {
@@ -44,16 +45,51 @@ export default function App() {
     }
   });
 
+  const [apiStatus, setApiStatus] = useState('checking');
+  const [tierSummary, setTierSummary] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/incidents')
+      .then((response) => {
+        if (!response.ok) throw new Error('Incident service unavailable');
+        return response.json();
+      })
+      .then((data) => {
+        if (!active || !Array.isArray(data.incidents)) return;
+        if (data.incidents.length > 0) {
+          setIncidents(data.incidents);
+        } else {
+          fetch('/api/incidents', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ incidents }),
+          }).catch(() => active && setApiStatus('offline'));
+        }
+        setApiStatus('connected');
+      })
+      .catch(() => active && setApiStatus('offline'));
+    return () => { active = false; };
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem('arc_shield_incidents', JSON.stringify(incidents));
+      if (apiStatus === 'connected') {
+        fetch('/api/incidents', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ incidents }),
+        }).catch(() => setApiStatus('offline'));
+      }
     } catch (err) {
       console.error(err);
     }
-  }, [incidents]);
+  }, [incidents, apiStatus]);
 
   const handleLoginSuccess = (userSession) => {
     setCurrentUser(userSession);
+    setActiveTab(userSession.role === 'Executive' ? 'dashboard' : 'report');
     try {
       localStorage.setItem('arc_shield_user', JSON.stringify(userSession));
     } catch (err) {
@@ -62,8 +98,21 @@ export default function App() {
   };
 
   const handleReportSubmit = (newReport) => {
-    setIncidents((prev) => [newReport, ...prev]);
-    setActiveTab('dashboard');
+    const reportWithReporter = { ...newReport, reporter: currentUser.name || 'Resident' };
+    const nextIncidents = [reportWithReporter, ...incidents];
+    setIncidents(nextIncidents);
+    const signature = JSON.stringify(nextIncidents.map(({ id, desc, location, risk, reporter }) => ({ id, desc, location, risk, reporter })));
+    fetch('/api/tier-summary', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ incidents: nextIncidents }) })
+      .then(async (response) => { const data = await response.json(); if (!response.ok) throw new Error(data.error); setTierSummary({ ...data, signature }); })
+      .catch(() => setTierSummary({ error: 'Summary unavailable', signature }));
+    setActiveTab('map');
+  };
+
+  const handleNavigate = (tab) => {
+    const allowed = currentUser.role === 'Executive'
+      ? ['dashboard', 'map', 'flood']
+      : ['report', 'map', 'flood'];
+    if (allowed.includes(tab)) setActiveTab(tab);
   };
 
   const handleCriticalFloodBreach = () => {
@@ -104,7 +153,7 @@ export default function App() {
       {/* Floating Pill Nav with Active Authenticated User Badge */}
       <Navigation
         activeTab={activeTab}
-        onSelectTab={setActiveTab}
+        onSelectTab={handleNavigate}
         currentUser={currentUser}
         onOpenLogin={() => setIsLoginOpen(true)}
       />
@@ -117,11 +166,11 @@ export default function App() {
       />
 
       <main className="app-content">
-        {activeTab === 'dashboard' && (
+        {activeTab === 'dashboard' && currentUser.role === 'Executive' && (
           <>
             <HomeHero
               activeIncidentCount={activeHazards.length}
-              onReportIncident={() => setActiveTab('report')}
+              onReportIncident={undefined}
               onExplore={() => {
                 const el = document.getElementById('board-section-anchor');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -132,22 +181,22 @@ export default function App() {
                 incidents={incidents}
                 setIncidents={setIncidents}
                 currentRole={currentUser.role}
+                tierSummary={tierSummary}
+                onTierSummaryChange={setTierSummary}
               />
             </div>
           </>
         )}
 
-        {activeTab === 'report' && (
+        {activeTab === 'report' && currentUser.role !== 'Executive' && (
           <>
-            <PageHero
-              tag="INCIDENT INTAKE CONSOLE"
-              badge="DIRECT OPERATOR LINK"
-              title="Environmental Hazard &amp;"
-              titleAccent="Incident Intake"
-              lead="Report visible infrastructure damages, water leaks, electrical sparking, or corridor obstructions for real-time AI triage."
-              bgImage="https://images.unsplash.com/photo-1541888946425-d0fbb18615f8?auto=format&fit=crop&w=2000&q=80"
+            <HomeHero
+              activeIncidentCount={activeHazards.length}
+              residentView
+              onReportIncident={() => document.getElementById('resident-report-anchor')?.scrollIntoView({ behavior: 'smooth' })}
+              onExplore={() => handleNavigate('map')}
             />
-            <ReportPortal onSubmit={handleReportSubmit} />
+            <div id="resident-report-anchor"><ReportPortal onSubmit={handleReportSubmit} /></div>
           </>
         )}
 

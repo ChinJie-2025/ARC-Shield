@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { classifyIncident } from '../data/incidentTriage';
 import './SafetyDashboard.css';
+import TierSummaryPanel from './TierSummaryPanel';
+import RepeatReportPanel from './RepeatReportPanel';
 
 const getProfile = (incident) => incident.riskProfile || classifyIncident(incident.desc);
 
@@ -27,11 +29,11 @@ const formatRemaining = (milliseconds) => {
 
 function IncidentCard({ incident, onClaim, onRespond, onVerify, now, variant = 'standard' }) {
   const profile = getProfile(incident);
-  const interveneDuration = (profile.interveneMinutes ?? 15) * 60000;
-  const deadline = incident.time + interveneDuration;
-  const left = deadline - now;
+  const hasSla = Number.isFinite(profile.interveneMinutes);
+  const deadline = hasSla ? incident.time + profile.interveneMinutes * 60000 : null;
+  const left = deadline === null ? null : deadline - now;
   const isFinished = incident.status === 'Responded' || incident.status === 'Resolved';
-  const overdue = left <= 0 && !isFinished;
+  const overdue = hasSla && left <= 0 && !isFinished;
 
   const escalateDuration = profile.escalateMinutes ? profile.escalateMinutes * 60000 : null;
   const escalationDue = escalateDuration ? incident.time + escalateDuration : null;
@@ -45,7 +47,7 @@ function IncidentCard({ incident, onClaim, onRespond, onVerify, now, variant = '
         <div className="header-tags">
           <span className={`ios-badge badge-${riskKey}`}>
             <span className="badge-pulse-dot" />
-            {incident.risk.toUpperCase()} • P{profile.priority ?? 3}
+            {incident.risk === 'Unclear' ? 'NEEDS REVIEW' : `${incident.risk.toUpperCase()} • P${profile.priority ?? 3}`}
           </span>
           <span className="incident-token">{incident.id}</span>
         </div>
@@ -73,11 +75,13 @@ function IncidentCard({ incident, onClaim, onRespond, onVerify, now, variant = '
         <div className={`sla-ribbon ${overdue ? 'sla-breach' : ''} ${incident.status === 'Responded' ? 'sla-cleared' : ''}`}>
           <div className="sla-ribbon-split">
             <span className="sla-ribbon-label">
-              {incident.status === 'Responded' ? 'INTERVENTION LOGGED' : overdue ? 'SLA EXPIRED' : 'SLA DEADLINE'}
+              {incident.status === 'Responded' ? 'INTERVENTION LOGGED' : !hasSla ? 'PRIORITY REVIEW' : overdue ? 'SLA EXPIRED' : 'SLA DEADLINE'}
             </span>
             <span className="sla-ribbon-countdown">
               {incident.status === 'Responded'
                 ? 'Recorded'
+                : !hasSla
+                ? 'Awaiting review'
                 : overdue
                 ? `Late ${formatRemaining(-left)}`
                 : formatRemaining(left)}
@@ -136,7 +140,7 @@ function IncidentCard({ incident, onClaim, onRespond, onVerify, now, variant = '
   );
 }
 
-export default function SafetyDashboard({ incidents, setIncidents, currentRole = 'Property Staff' }) {
+export default function SafetyDashboard({ incidents, setIncidents, currentRole = 'Executive', tierSummary, onTierSummaryChange }) {
   const role = currentRole; // Driven by the authenticated session
 
   // ---- State (these were missing) ----
@@ -221,6 +225,7 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
   const urgentIncident = useMemo(() => {
     return active
       .filter((i) => i.status !== 'Responded')
+      .filter((i) => i.risk !== 'Unclear')
       .sort((a, b) => {
         const pA = getProfile(a).priority ?? 9;
         const pB = getProfile(b).priority ?? 9;
@@ -261,6 +266,10 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
   );
   const lowTier = useMemo(
     () => active.filter((item) => item.risk === 'Low'),
+    [active]
+  );
+  const reviewTier = useMemo(
+    () => active.filter((item) => item.risk === 'Unclear'),
     [active]
   );
   const resolvedList = useMemo(
@@ -345,6 +354,9 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
           <span className="subtle-note">Audit verified field closures</span>
         </div>
       </section>
+
+      <TierSummaryPanel incidents={incidents} tierSummary={tierSummary} onTierSummaryChange={onTierSummaryChange} />
+      <RepeatReportPanel incidents={incidents} />
 
       {/* Immediate Attention Hero Spotlight */}
       {urgentIncident && (
@@ -448,6 +460,30 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
       {/* VIEW 1: PRIORITY HIERARCHY MATRIX */}
       {viewMode === 'priority' && (
         <div className="priority-hierarchy-container">
+          {reviewTier.length > 0 && (
+            <div className="hierarchy-lane lane-review">
+              <div className="lane-header-row">
+                <div className="lane-title-cluster">
+                  <span className="lane-status-badge badge-review">UNCLASSIFIED • NEEDS REVIEW</span>
+                  <span className="lane-subtext">No recognized hazard keywords; an operator must clarify and assign priority.</span>
+                </div>
+                <span className="lane-count-tag">{reviewTier.length}</span>
+              </div>
+              <div className="hierarchy-card-deck">
+                {reviewTier.map((incident) => (
+                  <IncidentCard
+                    key={incident.id}
+                    incident={incident}
+                    now={now}
+                    onClaim={claim}
+                    onRespond={respond}
+                    onVerify={setVerifyModal}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="hierarchy-lane lane-critical">
             <div className="lane-header-row">
               <div className="lane-title-cluster">

@@ -1,5 +1,6 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import './EvacuationMap.css';
+import EvacuationScene from './EvacuationScene';
 
 const NODES = {
   junc_central: { id: 'junc_central', x: 450, y: 270, label: 'Central Junction 01' },
@@ -63,6 +64,18 @@ export default function EvacuationMap({ activeHazards = [] }) {
   const [stairBBlocked, setStairBBlocked] = useState(false);
   const [wheelchairMode, setWheelchairMode] = useState(false);
   const [gpsTracking, setGpsTracking] = useState(true);
+  const [selectedFloor, setSelectedFloor] = useState(3);
+  const [detailFloor, setDetailFloor] = useState(null);
+  const [gpsMessage, setGpsMessage] = useState('');
+
+  const handleLocate = () => {
+    if (!navigator.geolocation) { setGpsMessage('Location is not supported by this browser.'); return; }
+    setGpsMessage('Requesting your location…');
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      setUserPos({ x: 450, y: 420, label: `GPS located · ${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)} · entry point` });
+      setGpsTracking(true); setGpsMessage('GPS located. Confirm your level and corridor on the model.');
+    }, () => { setGpsTracking(false); setGpsMessage('Location unavailable. Choose a starting point or enter it manually.'); }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 });
+  };
 
   // Dynamic Routing Solver
   const routeCalculation = useMemo(() => {
@@ -116,11 +129,12 @@ export default function EvacuationMap({ activeHazards = [] }) {
 
     const deltaX = Math.abs(userPos.x - target.x);
     const deltaY = Math.abs(userPos.y - target.y);
-    const distanceMeters = Math.max(18, Math.round((deltaX + deltaY) / 9.5));
-    const estSeconds = Math.round(distanceMeters * (wheelchairMode ? 1.3 : 1.05));
+    const interFloorMeters = isDeadlock ? 0 : Math.max(0, selectedFloor - 1) * (wheelchairMode ? 22 : 28);
+    const distanceMeters = Math.max(18, Math.round((deltaX + deltaY) / 9.5 + interFloorMeters));
+    const estSeconds = Math.round(distanceMeters * (wheelchairMode ? 1.3 : 1.18));
 
     return { target, isDeadlock, pathD, distanceMeters, estSeconds };
-  }, [userPos, stairABlocked, stairBBlocked, wheelchairMode]);
+  }, [userPos, stairABlocked, stairBBlocked, wheelchairMode, selectedFloor]);
 
   const { target, isDeadlock, pathD, distanceMeters, estSeconds } = routeCalculation;
 
@@ -131,22 +145,6 @@ export default function EvacuationMap({ activeHazards = [] }) {
     : wheelchairMode
     ? '#0284c7'
     : '#10b981';
-
-  const handleMapClick = (e) => {
-    const svg = e.currentTarget;
-    const rect = svg.getBoundingClientRect();
-    const clickX = Math.round(((e.clientX - rect.left) / rect.width) * 900);
-    const clickY = Math.round(((e.clientY - rect.top) / rect.height) * 540);
-
-    if (clickX >= 80 && clickX <= 820 && clickY >= 80 && clickY <= 460) {
-      setUserPos({
-        x: clickX,
-        y: clickY,
-        label: `Corridor Marker (${clickX}, ${clickY})`,
-      });
-      setGpsTracking(true);
-    }
-  };
 
   return (
     <div className="evac-viewport">
@@ -176,6 +174,8 @@ export default function EvacuationMap({ activeHazards = [] }) {
             </svg>
             <span>{userPos.label}</span>
           </div>
+          <button type="button" className="btn-origin-chip" onClick={handleLocate}>Use my location</button>
+          {gpsMessage && <span className="gps-feedback" role="status">{gpsMessage}</span>}
         </div>
       </header>
 
@@ -265,10 +265,10 @@ export default function EvacuationMap({ activeHazards = [] }) {
         <section className="floorplan-glass-card">
           <div className="floorplan-header-bar">
             <div className="floor-badge-cluster">
-              <span className="level-pill">LEVEL 01</span>
+                <span className="level-pill">LEVEL {String(selectedFloor).padStart(2, '0')}</span>
               <div>
-                <h3 className="floor-plan-title">Architectural Evacuation Blueprint</h3>
-                <span className="floor-plan-sub">CLICK MAP TO CALIBRATE OCCUPANT POSITION</span>
+                <h3 className="floor-plan-title">{detailFloor ? `Level ${String(detailFloor).padStart(2, '0')} · Route detail` : 'Continuous 3D evacuation route'}</h3>
+                <span className="floor-plan-sub">{selectedFloor > 1 ? `LEVEL ${String(selectedFloor).padStart(2, '0')} → ${target?.id === 'secondary' ? 'STAIR B' : target?.id === 'accessible' || target?.id === 'cargo' ? 'EVACUATION LIFT' : 'STAIR A'} → LEVEL 01 → ASSEMBLY` : 'GROUND LEVEL ROUTE → ASSEMBLY'}</span>
               </div>
             </div>
             <div className="route-state-chip" style={{ borderColor: routeColor, color: routeColor }}>
@@ -277,154 +277,17 @@ export default function EvacuationMap({ activeHazards = [] }) {
             </div>
           </div>
 
-          <div className="cad-svg-viewport">
-            <svg
-              className="blueprint-svg interactive-cursor"
-              viewBox="0 0 900 540"
-              role="img"
-              onClick={handleMapClick}
-              preserveAspectRatio="xMidYMid meet"
-            >
-              <defs>
-                <pattern id="ios-cad-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-                  <path d="M 24 0 L 0 0 0 24" fill="none" stroke="rgba(0, 0, 0, 0.04)" strokeWidth="1" />
-                </pattern>
-                <marker
-                  id="chevron-arrow"
-                  viewBox="0 0 10 10"
-                  refX="6"
-                  refY="5"
-                  markerWidth="6"
-                  markerHeight="6"
-                  orient="auto-start-reverse"
-                >
-                  <path d="M 0 1 L 6 5 L 0 9" fill="none" stroke={routeColor} strokeWidth="2.5" strokeLinecap="round" />
-                </marker>
-                <filter id="vector-glow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="5" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-
-              <rect width="900" height="540" fill="#f8fafc" />
-              <rect width="900" height="540" fill="url(#ios-cad-grid)" />
-              <rect x="35" y="42" width="830" height="456" rx="16" fill="#ffffff" stroke="#cbd5e1" strokeWidth="2.5" />
-
-              <rect x="70" y="78" width="175" height="112" rx="8" className="svg-room-block" />
-              <text x="157" y="128" textAnchor="middle" className="svg-room-title">LOBBY / RECEPTION</text>
-              <text x="157" y="146" textAnchor="middle" className="svg-room-meta">Zone 101 • Standard</text>
-
-              <rect x="315" y="78" width="110" height="112" rx="8" className="svg-room-block" />
-              <text x="370" y="132" textAnchor="middle" className="svg-room-title">OFFICE SUITE</text>
-              <text x="370" y="148" textAnchor="middle" className="svg-room-meta">Zone 102</text>
-
-              <rect
-                x="480"
-                y="78"
-                width="115"
-                height="112"
-                rx="8"
-                className={`svg-room-block ${isDeadlock ? 'svg-room-refuge-active' : ''}`}
-              />
-              <text x="537" y="130" textAnchor="middle" className="svg-room-title">CONF SUITE 103</text>
-              <text x="537" y="148" textAnchor="middle" className={`svg-room-meta ${isDeadlock ? 'text-refuge-bold' : ''}`}>
-                {isDeadlock ? 'SAFE REFUGE BAY' : 'Zone 103'}
-              </text>
-
-              <rect x="675" y="345" width="150" height="115" rx="8" className="svg-room-block" />
-              <text x="750" y="398" textAnchor="middle" className="svg-room-title">AMENITIES</text>
-              <text x="750" y="416" textAnchor="middle" className="svg-room-meta">Staff Hub &amp; Pantry</text>
-
-              <rect x="75" y="345" width="150" height="115" rx="8" className="svg-room-block" />
-              <text x="150" y="398" textAnchor="middle" className="svg-room-title">MEP / SERVICE</text>
-              <text x="150" y="416" textAnchor="middle" className="svg-room-meta">Restricted Core</text>
-
-              <path d="M245 195 V345 M315 195 V240 M425 195 V240 M480 195 V345 M595 195 V240 M675 195 V345" className="svg-wall-line" />
-              <path d="M245 345 H315 M425 345 H480 M595 345 H675 M245 195 H315 M425 195 H480 M595 195 H675" className="svg-wall-line" />
-
-              <path d="M450 420 V270 M450 270 H760 M450 270 H100 M450 270 V95 M450 270 H650 V95 H760" className="svg-corridor-track" />
-
-              <path
-                d={pathD}
-                className="svg-route-glow"
-                style={{ stroke: routeColor }}
-                filter="url(#vector-glow)"
-              />
-              <path
-                d={pathD}
-                className="svg-route-animated"
-                style={{ stroke: routeColor }}
-                markerEnd="url(#chevron-arrow)"
-              />
-
-              {/* Live Reported Hazard Markers Rendered on the Map */}
-              {activeHazards.map((hazard, idx) => (
-                <g key={hazard.id || idx} transform="translate(650, 270)">
-                  <circle cx="0" cy="0" r="14" fill="#fee2e2" stroke="#dc2626" strokeWidth="2" />
-                  <text x="0" y="4" textAnchor="middle" fontSize="11" fontWeight="800" fill="#dc2626">!</text>
-                  <rect x="-35" y="16" width="70" height="18" rx="4" fill="#dc2626" />
-                  <text x="0" y="28" textAnchor="middle" fontSize="8" fontWeight="800" fill="#ffffff">HAZARD</text>
-                </g>
-              ))}
-
-              <circle cx={userPos.x} cy={userPos.y} r="20" className="svg-beacon-ring" />
-              <circle cx={userPos.x} cy={userPos.y} r="7" className="svg-beacon-dot" />
-              <g transform={`translate(${userPos.x - 60}, ${userPos.y + 16})`}>
-                <rect width="120" height="22" rx="11" fill="#0f172a" />
-                <text x="60" y="15" textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="800" letterSpacing="0.06em">
-                  YOU ARE HERE
-                </text>
-              </g>
-
-              <circle cx={NODES.junc_central.x} cy={NODES.junc_central.y} r="6" fill="#64748b" />
-              <text x={NODES.junc_central.x} y={NODES.junc_central.y - 12} textAnchor="middle" className="svg-junction-label">
-                JUNCTION 01
-              </text>
-
-              <g className={`svg-exit-node ${target.id === 'main' ? 'is-selected' : ''} ${stairABlocked ? 'is-blocked' : ''}`}>
-                <circle cx={EXITS.main.x} cy={EXITS.main.y} r="18" />
-                <text x={EXITS.main.x} y={EXITS.main.y + 5} textAnchor="middle" className="node-symbol">
-                  {stairABlocked ? '✕' : 'A'}
-                </text>
-                <text x={EXITS.main.x} y={EXITS.main.y + 36} textAnchor="middle" className="node-title">STAIRWELL A</text>
-                {stairABlocked && (
-                  <text x={EXITS.main.x} y={EXITS.main.y + 50} textAnchor="middle" className="node-blocked-tag">BLOCKED</text>
-                )}
-              </g>
-
-              <g className={`svg-exit-node ${target.id === 'secondary' ? 'is-selected' : ''} ${stairBBlocked ? 'is-blocked' : ''}`}>
-                <circle cx={EXITS.secondary.x} cy={EXITS.secondary.y} r="18" />
-                <text x={EXITS.secondary.x} y={EXITS.secondary.y + 5} textAnchor="middle" className="node-symbol">
-                  {stairBBlocked ? '✕' : 'B'}
-                </text>
-                <text x={EXITS.secondary.x} y={EXITS.secondary.y + 36} textAnchor="middle" className="node-title">STAIRWELL B</text>
-                {stairBBlocked && (
-                  <text x={EXITS.secondary.x} y={EXITS.secondary.y + 50} textAnchor="middle" className="node-blocked-tag">BLOCKED</text>
-                )}
-              </g>
-
-              <g className={`svg-exit-node lift-node ${target.id === 'accessible' ? 'is-selected' : ''}`}>
-                <circle cx={EXITS.accessible.x} cy={EXITS.accessible.y} r="18" />
-                <text x={EXITS.accessible.x} y={EXITS.accessible.y + 5} textAnchor="middle" className="node-symbol">EL-1</text>
-                <text x={EXITS.accessible.x} y={EXITS.accessible.y - 26} textAnchor="middle" className="node-title">EVAC LIFT A</text>
-              </g>
-
-              <g className={`svg-exit-node lift-node ${target.id === 'cargo' ? 'is-selected' : ''}`}>
-                <circle cx={EXITS.cargo.x} cy={EXITS.cargo.y} r="18" />
-                <text x={EXITS.cargo.x} y={EXITS.cargo.y + 5} textAnchor="middle" className="node-symbol">CL-2</text>
-                <text x={EXITS.cargo.x} y={EXITS.cargo.y - 26} textAnchor="middle" className="node-title">CARGO LIFT</text>
-              </g>
-
-              <g transform="translate(820, 62)">
-                <circle cx="14" cy="14" r="15" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1" />
-                <path d="M14 4 L18 16 L14 13 L10 16 Z" fill="#0f172a" />
-                <text x="14" y="39" textAnchor="middle" fontSize="10" fontWeight="800" fill="#64748b">N</text>
-              </g>
-            </svg>
+          <div className="map-view-toolbar">
+            <div className="map-view-switch" role="group" aria-label="Route view">
+              <button type="button" className={!detailFloor ? 'is-active' : ''} onClick={() => setDetailFloor(null)}>Full route</button>
+            </div>
+            <div className="floor-selector" role="group" aria-label="Starting floor">
+              {[3, 2, 1].map((floor) => <button key={floor} type="button" className={selectedFloor === floor ? 'is-active' : ''} onClick={() => { setSelectedFloor(floor); setDetailFloor(floor); }}>Level {String(floor).padStart(2, '0')}</button>)}
+            </div>
+            <div className="orbit-controls"><span className="orbit-instruction">Drag to orbit · scroll to zoom · click a floor to inspect</span></div>
           </div>
+
+          <EvacuationScene userPos={userPos} target={target} routeColor={routeColor} activeHazards={activeHazards} selectedFloor={selectedFloor} detailFloor={detailFloor} onSelectFloor={(floor) => { setSelectedFloor(floor); setDetailFloor(floor); }} />
 
           <div className="floorplan-legend-row">
             <div className="legend-item">
@@ -518,7 +381,7 @@ export default function EvacuationMap({ activeHazards = [] }) {
                 <div className="step-number-bubble">01</div>
                 <div className="step-info">
                   <span className="step-lead-text">Origin: {userPos.label}</span>
-                  <p className="step-body-copy">Advance toward central illuminated corridor spine.</p>
+                    <p className="step-body-copy">{selectedFloor > 1 ? `Follow the marked corridor to ${wheelchairMode ? 'the evacuation lift' : `Stairwell ${target.id === 'secondary' ? 'B' : 'A'}`} on Level ${selectedFloor}.` : 'Advance toward the nearest signed exit route and keep the corridor clear.'}</p>
                 </div>
               </div>
               <div className="step-card-ios">
@@ -529,10 +392,10 @@ export default function EvacuationMap({ activeHazards = [] }) {
                     {isDeadlock
                       ? 'Turn right into sealed Conference Suite 103 refuge bay.'
                       : target.id === 'secondary'
-                      ? 'Turn left away from the blocked east core toward Stairwell B.'
-                      : target.id === 'accessible'
-                      ? 'Proceed straight north into the pressurized lift lobby.'
-                      : 'Turn right toward Stairwell A fire escape doors.'}
+                      ? `Use the west corridor to reach Stairwell B${selectedFloor > 1 ? `, then descend to Level 01` : ''}.`
+                      : target.id === 'accessible' || target.id === 'cargo'
+                      ? `Enter the protected evacuation lift and travel down to Level 01.`
+                      : `Use the east corridor to reach Stairwell A${selectedFloor > 1 ? `, then descend to Level 01` : ''}.`}
                   </p>
                 </div>
               </div>
@@ -543,7 +406,9 @@ export default function EvacuationMap({ activeHazards = [] }) {
                   <p className="step-body-copy">
                     {isDeadlock
                       ? 'Engage door seals and activate emergency intercom.'
-                      : 'Maintain right banister spacing down to Ground Assembly Area A.'}
+                      : selectedFloor > 1
+                      ? 'At Level 01, follow the ground-level exit signs to the designated outdoor assembly area. Do not use passenger lifts.'
+                      : 'Follow the ground-level exit signs to the designated outdoor assembly area.'}
                   </p>
                 </div>
               </div>

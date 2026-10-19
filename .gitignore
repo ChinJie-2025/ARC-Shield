@@ -4,6 +4,7 @@ node_modules/
 
 # Production build output
 dist/
+data/incidents.json
 
 # Local environment files
 .env

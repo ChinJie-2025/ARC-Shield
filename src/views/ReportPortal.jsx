@@ -8,6 +8,9 @@ export default function ReportPortal({ onSubmit = () => {} }) {
   const [description, setDescription] = useState('');
   const [preview, setPreview] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeminiLoading, setIsGeminiLoading] = useState(false);
+  const [geminiAssessment, setGeminiAssessment] = useState(null);
+  const [geminiError, setGeminiError] = useState('');
 
   // GPS Tracking States
   const [isLocating, setIsLocating] = useState(false);
@@ -22,6 +25,28 @@ export default function ReportPortal({ onSubmit = () => {} }) {
   };
 
   const hasDescription = Boolean(description.trim());
+
+  const requestGeminiAssessment = async () => {
+    setIsGeminiLoading(true);
+    setGeminiError('');
+    setGeminiAssessment(null);
+    try {
+      const response = await fetch('/api/triage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: description.trim(), location: location.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Gemini assessment is unavailable.');
+      setGeminiAssessment(data.assessment);
+    } catch (error) {
+      setGeminiError(error instanceof TypeError
+        ? 'Cannot reach the ARC-Shield API. Start the app with “npm run dev:all”, then try again.'
+        : error.message || 'Unable to reach the Gemini service.');
+    } finally {
+      setIsGeminiLoading(false);
+    }
+  };
 
   useEffect(() => {
     return () => {
@@ -122,6 +147,8 @@ export default function ReportPortal({ onSubmit = () => {} }) {
     setStatus('idle');
     setPreview('');
     setDescription('');
+    setGeminiAssessment(null);
+    setGeminiError('');
     setLocation('');
     setGeoCoords(null);
     setGeoError('');
@@ -172,58 +199,38 @@ export default function ReportPortal({ onSubmit = () => {} }) {
   const riskClass = hasDescription ? triage.risk.toLowerCase() : 'neutral';
 
   return (
-    <div className="portal-viewport">
-      <div className="portal-glass-shell">
-        {/* Left Column: Context, Hierarchy & Emergency Protocol */}
-        <aside className="portal-guide-sidebar">
-          <div>
-            <div className="guide-kicker-line">
-              <span className="kicker-brand">ARC-SHIELD OS</span>
-              <span className="kicker-bullet">•</span>
-              <span className="kicker-node">INCIDENT INTAKE</span>
-            </div>
-            <h1 className="guide-hero-title">Report a Safety Hazard</h1>
-            <p className="guide-hero-lead">
-              Direct connection to facility engineering and perimeter security. Reports are analyzed in real time to suggest intervention urgency.
-            </p>
-          </div>
+    <div className="portal-viewport report-experience">
+      <div className="portal-glass-shell report-submit-layout">
+        <div className="report-quick-guide" aria-label="Quick report guide">
+          <strong>Quick guide</strong>
+          <span><b>1</b> Location</span>
+          <span><b>2</b> Describe the issue</span>
+          <span><b>3</b> Photo optional</span>
+          <small>For immediate danger, move to safety and call emergency services.</small>
+        </div>
 
-          <div className="emergency-callout-glass">
-            <div className="emergency-badge-dot" />
+        <main className="portal-input-surface report-form-card">
+          <div className="report-form-card__header">
             <div>
-              <h4 className="emergency-callout-title">Life-Safety Emergency?</h4>
-              <p className="emergency-callout-desc">
-                For active fires, gas leaks, physical structural failure, or medical emergencies, evacuate and dial emergency services immediately.
-              </p>
+              <span className="report-form-card__eyebrow">NEW REPORT</span>
+              <h2>Incident details</h2>
+              <p>Fields marked with <span>*</span> are required.</p>
             </div>
-          </div>
-
-          <div className="ai-status-card-glass">
-            <div className="ai-header-row">
-              <div className="ai-pulse-dot" />
-              <span className="ai-title-tag">Live Triage Intelligence</span>
-            </div>
-            <p className="ai-copy-text">
-              Natural language models compute SLA deadlines, recommended response teams, and hazard priority as you type.
-            </p>
-          </div>
-        </aside>
-
-        {/* Right Column: Submission Form */}
-        <main className="portal-input-surface">
-          <div className="surface-header-bar">
-            <div>
-              <h2 className="surface-title">Hazard Details</h2>
-              <p className="surface-subtitle">Provide precise physical landmarks and visible conditions.</p>
-            </div>
-            <span className="surface-badge-req">* Required</span>
+            <span className="report-form-card__secure" title="Your report is sent to the property response queue">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="4" y="8" width="12" height="9" rx="2" />
+                <path d="M7 8V6a3 3 0 0 1 6 0v2" />
+              </svg>
+              Property team
+            </span>
           </div>
 
           <form onSubmit={handleSubmit} className="portal-entry-form" noValidate={false}>
             {/* Location Input with Integrated GPS */}
             <div className="input-group-ios">
               <div className="label-row-between">
-                <label htmlFor="hazard-location" className="label-ios">
+                <label htmlFor="hazard-location" className="label-ios report-field-label">
+                  <span className="report-field-label__index">01</span>
                   Exact Location <span className="req-asterisk">*</span>
                 </label>
                 <button
@@ -254,7 +261,10 @@ export default function ReportPortal({ onSubmit = () => {} }) {
                   type="text"
                   className="input-ios has-icon"
                   value={location}
-                  onChange={(e) => setLocation(e.target.value)}
+                  onChange={(e) => {
+                    setLocation(e.target.value);
+                    setGeminiAssessment(null);
+                  }}
                   placeholder="e.g., Tower B, Basement 2 car park, near pillar 14C"
                 />
               </div>
@@ -279,7 +289,8 @@ export default function ReportPortal({ onSubmit = () => {} }) {
 
             {/* Description Input */}
             <div className="input-group-ios">
-              <label htmlFor="hazard-description" className="label-ios">
+              <label htmlFor="hazard-description" className="label-ios report-field-label">
+                <span className="report-field-label__index">02</span>
                 What did you notice? <span className="req-asterisk">*</span>
               </label>
               <textarea
@@ -288,14 +299,19 @@ export default function ReportPortal({ onSubmit = () => {} }) {
                 rows={4}
                 className="textarea-ios"
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => {
+                  setDescription(e.target.value);
+                  setGeminiAssessment(null);
+                  setGeminiError('');
+                }}
                 placeholder="Describe visible damage, fluid spills, blocked emergency exits, sparking electricals, or safety concerns..."
               />
             </div>
 
             {/* Photo Upload Area */}
             <div className="input-group-ios">
-              <label className="label-ios">
+              <label className="label-ios report-field-label">
+                <span className="report-field-label__index">03</span>
                 Photo Evidence <span className="opt-tag">(Optional)</span>
               </label>
               <div className={`media-uploader-box ${preview ? 'has-preview' : ''}`}>
@@ -334,13 +350,13 @@ export default function ReportPortal({ onSubmit = () => {} }) {
               </div>
             </div>
 
-            {/* Dynamic AI Triage Card */}
+            {/* Rules-based triage and optional Gemini review */}
             <div className={`ai-triage-dock risk-${riskClass}`}>
               <div className="triage-status-row">
                 <div className="triage-left-cluster">
-                  <span className="triage-label-kicker">AI CLASSIFICATION SUGGESTION</span>
+                  <span className="triage-label-kicker">RULE-BASED CLASSIFICATION</span>
                   <span className="triage-severity-pill">
-                    {hasDescription ? triage.risk.toUpperCase() : 'AWAITING DETAILS'}
+                    {hasDescription ? (triage.isRecognized ? triage.risk.toUpperCase() : 'NEEDS REVIEW') : 'AWAITING DETAILS'}
                   </span>
                 </div>
                 <div className="triage-sla-meta">
@@ -365,6 +381,90 @@ export default function ReportPortal({ onSubmit = () => {} }) {
                   </div>
                 </div>
               )}
+
+              <section className="gemini-review-panel" aria-label="Gemini safety review">
+                <div className="gemini-review-panel__header">
+                  <div className="gemini-review-panel__identity">
+                    <span className="gemini-review-panel__icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 3 13.9 9.1 20 11l-6.1 1.9L12 19l-1.9-6.1L4 11l6.1-1.9L12 3Z" />
+                        <path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z" />
+                      </svg>
+                    </span>
+                    <div className="gemini-review-panel__copy">
+                      <span className="gemini-review-panel__eyebrow">AI ASSIST</span>
+                      <h3>Gemini safety review</h3>
+                      <p>A second look at urgency, response steps, and teams.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="gemini-review-button"
+                    onClick={requestGeminiAssessment}
+                    disabled={!hasDescription || isGeminiLoading}
+                    aria-busy={isGeminiLoading}
+                  >
+                    {isGeminiLoading ? (
+                      <><span className="gemini-review-spinner" aria-hidden="true" /> Reviewing</>
+                    ) : (
+                      <>
+                        <span>{geminiAssessment ? 'Run again' : 'Review report'}</span>
+                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M4 10h11m-4-4 4 4-4 4" />
+                        </svg>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {!hasDescription && !geminiError && (
+                  <p className="gemini-review-panel__prompt">Add an incident description to request an AI review.</p>
+                )}
+                {geminiError && <p className="gemini-review-error" role="alert">{geminiError}</p>}
+
+                {geminiAssessment && (
+                  <section className={`gemini-review-result risk-${geminiAssessment.risk.toLowerCase()}`} aria-live="polite">
+                    <div className="gemini-review-result__topline">
+                      <span className="gemini-review-result__label">ASSESSMENT</span>
+                      <span className={`gemini-risk-pill gemini-risk-pill--${geminiAssessment.risk.toLowerCase()}`}>
+                        {geminiAssessment.risk} priority
+                      </span>
+                    </div>
+                    <p className="gemini-review-result__summary">{geminiAssessment.summary}</p>
+
+                    {geminiAssessment.recommendedActions?.length > 0 && (
+                      <div className="gemini-review-result__section">
+                        <h4>Recommended next steps</h4>
+                        <ul className="gemini-action-list">
+                          {geminiAssessment.recommendedActions.map((action, index) => (
+                            <li key={`${index}-${action}`}>
+                              <span>{String(index + 1).padStart(2, '0')}</span>
+                              {action}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {geminiAssessment.suggestedTeams?.length > 0 && (
+                      <div className="gemini-review-result__section">
+                        <h4>Teams to consider</h4>
+                        <div className="gemini-team-list">
+                          {geminiAssessment.suggestedTeams.map((team, index) => <span key={`${index}-${team}`}>{team}</span>)}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="gemini-review-result__notice">
+                      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M10 2.5 16 5v4.7c0 3.5-2.5 6-6 7.8-3.5-1.8-6-4.3-6-7.8V5l6-2.5Z" />
+                        <path d="m7.5 9.8 1.7 1.7 3.4-3.6" />
+                      </svg>
+                      <span>{geminiAssessment.advisory}</span>
+                    </div>
+                  </section>
+                )}
+              </section>
             </div>
 
             <div className="portal-actions-row">
