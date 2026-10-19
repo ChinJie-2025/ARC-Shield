@@ -12,6 +12,10 @@ Open the link in a browser. Visitors do not need to install Node.js, clone this 
 
 The Render deployment must have `GEMINI_API_KEY` configured in its environment variables for Gemini-powered report reviews and tier summaries. A local `.env` file is only used when running the project on a developer's computer; it is not uploaded to Render automatically.
 
+Deploy ARC-Shield as a Render **Web Service** so one process can serve both the frontend and API. Use `npm install && npm run build` as the build command and `npm run api` as the start command. A Render Static Site only serves frontend files and will return 404 for `/api/health`.
+
+For persistent incident storage on Render, create a Render Postgres database and set the web service's `DATABASE_URL` environment variable to the database's **internal connection URL**. Keep the database and web service in the same Render region, then redeploy. The API health endpoint reports `"storage":"postgres"` when connected. If `DATABASE_URL` is missing, the API uses a local JSON file, which Render does not preserve across restarts or deploys by default. See [Render Web Services](https://render.com/docs/web-services), [Render Postgres setup](https://render.com/docs/postgresql), and [Render filesystem behavior](https://render.com/docs/disks).
+
 ## What it does
 
 ### Resident dashboard
@@ -40,7 +44,7 @@ The role switch in the navigation is a demo access selector, not production auth
 | Styling | CSS; Tailwind CSS 4 Vite plugin | Existing component styling and utility CSS support |
 | Backend | Node.js built-in HTTP server | JSON API for incidents and Gemini features |
 | AI | Google Gemini API over REST | Optional incident review and executive tier summaries |
-| Local persistence | JSON file at `data/incidents.json` | Stores incidents for the local demo |
+| Persistence | PostgreSQL via `pg`, or JSON locally | Uses PostgreSQL when `DATABASE_URL` is configured; otherwise uses a local JSON file |
 | Browser fallback | `localStorage` | Retains incident and demo user state in the browser |
 
 ## Requirements
@@ -76,6 +80,8 @@ npm run dev
 
 If the API port is already occupied, set another `API_PORT` in `.env` and restart both services. The Vite proxy reads the same setting.
 
+Local development uses `data/incidents.json` by default. To connect a local computer to Render Postgres, use the database's **external connection URL** in `.env`; the internal URL only resolves from services running inside Render. Leave `DATABASE_URL` blank to use the local JSON store. The API creates its `arc_incidents` table at startup and imports existing JSON incidents once if the table is empty.
+
 ## Configure Gemini
 
 1. Create an API key in [Google AI Studio](https://aistudio.google.com/app/apikey).
@@ -89,6 +95,7 @@ Example configuration:
 GEMINI_API_KEY=your_key_here
 GEMINI_MODEL=gemini-3.8-flash
 API_PORT=3002
+DATABASE_URL=
 ```
 
 Keep the key in `.env`. Do not add it to frontend code or commit/share the file. Gemini is optional: rules-based triage and tier counts remain available without a key. Gemini-generated advice is an operator aid and requires human review. Avoid submitting personal or sensitive information because report descriptions and locations are sent to Google when Gemini is used.
@@ -107,6 +114,8 @@ All endpoints use JSON. The local API reads `.env` at startup.
 
 Incident requests are limited to 1 MB. The backend validates required fields, statuses, and duplicate incident IDs before saving. Gemini credentials are sent by the backend and are not exposed to the browser.
 
+The data store is selected at API startup: PostgreSQL when `DATABASE_URL` is set, otherwise `data/incidents.json` for local development.
+
 ## Project layout
 
 ```text
@@ -116,6 +125,7 @@ src/
   views/            Reporting, executive dashboard, evacuation, and flood views
   App.jsx           Role-based navigation and shared application state
 server.mjs          Local JSON API, persistence, and Gemini integration
+lib/incidentStore.mjs PostgreSQL/JSON storage adapter and startup migration
 scripts/dev.mjs     Starts the frontend and API together
 .env.example        Gemini and local API configuration template
 data/               Local incident store, created when the API saves records
@@ -135,7 +145,7 @@ Preview the generated frontend bundle:
 npm run preview
 ```
 
-The preview serves the frontend only. A hosted deployment needs a separately deployed API and a configured API URL/proxy.
+The preview serves the frontend only. The production Node API serves the built frontend and `/api/*` routes from the same Web Service.
 
 ## Current limitations
 

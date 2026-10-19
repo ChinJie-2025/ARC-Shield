@@ -1,32 +1,23 @@
 import { createServer } from 'node:http';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { extname, relative, resolve, sep } from 'node:path';
+import { closeIncidentStore, initializeIncidentStore, readIncidents, saveIncidents } from './lib/incidentStore.mjs';
 
-const storePath = resolve('data/incidents.json');
 const validStatuses = new Set(['Reported', 'Assigned', 'Responded', 'Resolved']);
 let writeQueue = Promise.resolve();
+let storageMode = 'json';
 
 async function loadLocalEnvironment() {
   try {
     const contents = await readFile(resolve('.env'), 'utf8');
     for (const line of contents.split(/\r?\n/)) {
       const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
-      if (!match || process.env[match[1]]) continue;
+      if (!match || Object.hasOwn(process.env, match[1])) continue;
       const value = match[2].replace(/^(['"])(.*)\1$/, '$2');
       process.env[match[1]] = value;
     }
   } catch (error) {
     if (error.code !== 'ENOENT') throw error;
-  }
-}
-
-async function readStore() {
-  try {
-    const parsed = JSON.parse(await readFile(storePath, 'utf8'));
-    return Array.isArray(parsed.incidents) ? parsed.incidents : [];
-  } catch (error) {
-    if (error.code !== 'ENOENT') throw error;
-    return [];
   }
 }
 
@@ -36,6 +27,62 @@ function send(response, status, payload) {
     'Cache-Control': 'no-store',
   });
   response.end(JSON.stringify(payload));
+}
+
+async function serveFrontend(request, response, pathname) {
+  if (!['GET', 'HEAD'].includes(request.method)) {
+    response.setHeader('Allow', 'GET, HEAD');
+    return send(response, 405, { error: 'Method not allowed' });
+  }
+
+  const distPath = resolve('dist');
+  let requestedPath;
+  try {
+    requestedPath = decodeURIComponent(pathname);
+  } catch {
+    return send(response, 400, { error: 'Invalid URL path' });
+  }
+
+  const relativePath = requestedPath === '/' ? 'index.html' : requestedPath.replace(/^\/+/, '');
+  let filePath = resolve(distPath, relativePath);
+  const fileRelativePath = relative(distPath, filePath);
+  if (fileRelativePath.startsWith(`..${sep}`) || fileRelativePath === '..') {
+    return send(response, 403, { error: 'Forbidden' });
+  }
+
+  let contents;
+  try {
+    contents = await readFile(filePath);
+  } catch (error) {
+    if (error.code !== 'ENOENT' && error.code !== 'EISDIR') throw error;
+    // Client-side routes should load the SPA entry point; missing asset paths remain 404s.
+    if (extname(requestedPath)) return send(response, 404, { error: 'File not found' });
+    filePath = resolve(distPath, 'index.html');
+    try {
+      contents = await readFile(filePath);
+    } catch {
+      return send(response, 503, { error: 'Frontend bundle is missing. Run npm run build before starting the production server.' });
+    }
+  }
+
+  const types = {
+    '.css': 'text/css; charset=utf-8',
+    '.html': 'text/html; charset=utf-8',
+    '.ico': 'image/x-icon',
+    '.jpeg': 'image/jpeg',
+    '.jpg': 'image/jpeg',
+    '.js': 'text/javascript; charset=utf-8',
+    '.json': 'application/json; charset=utf-8',
+    '.png': 'image/png',
+    '.svg': 'image/svg+xml',
+    '.webp': 'image/webp',
+  };
+  response.writeHead(200, {
+    'Content-Type': types[extname(filePath).toLowerCase()] || 'application/octet-stream',
+    'Cache-Control': extname(filePath) === '.html' ? 'no-cache' : 'public, max-age=3600',
+    'X-Content-Type-Options': 'nosniff',
+  });
+  response.end(request.method === 'HEAD' ? undefined : contents);
 }
 
 async function readBody(request) {
@@ -53,7 +100,8 @@ const server = createServer(async (request, response) => {
     return send(response, 200, {
       status: 'ok',
       service: 'ARC-Shield incident service',
-      features: ['incident-storage', 'gemini-triage'],
+      features: ['incident-storage', 'gemini-triage', 'tier-summary'],
+      storage: storageMode,
     });
   }
   if (url.pathname === '/api/triage' && request.method === 'POST') {
@@ -177,11 +225,19 @@ const server = createServer(async (request, response) => {
     }
   }
 
-  if (url.pathname !== '/api/incidents') return send(response, 404, { error: 'Route not found' });
+  if (url.pathname !== '/api/incidents') {
+    if (url.pathname.startsWith('/api/')) return send(response, 404, { error: 'Route not found' });
+    try {
+      return await serveFrontend(request, response, url.pathname);
+    } catch (error) {
+      console.error('Frontend serving error:', error.message);
+      return send(response, 500, { error: 'Unable to serve the frontend.' });
+    }
+  }
 
   try {
     if (request.method === 'GET') {
-      return send(response, 200, { incidents: await readStore() });
+      return send(response, 200, { incidents: await readIncidents() });
     }
     if (request.method === 'PUT') {
       const body = await readBody(request);
@@ -199,8 +255,7 @@ const server = createServer(async (request, response) => {
       if (ids.size !== body.incidents.length) return send(response, 400, { error: 'Incident IDs must be unique.' });
 
       writeQueue = writeQueue.then(async () => {
-        await mkdir(dirname(storePath), { recursive: true });
-        await writeFile(storePath, `${JSON.stringify({ incidents: body.incidents }, null, 2)}\n`, 'utf8');
+        await saveIncidents(body.incidents);
       });
       await writeQueue;
       return send(response, 200, { saved: body.incidents.length });
@@ -215,7 +270,8 @@ const server = createServer(async (request, response) => {
 });
 
 await loadLocalEnvironment();
-const port = Number(process.env.API_PORT || 3002);
+storageMode = await initializeIncidentStore();
+const port = Number(process.env.PORT || process.env.API_PORT || 3002);
 server.on('error', (error) => {
   if (error.code === 'EADDRINUSE') {
     console.error(`Port ${port} is already in use. Stop the other process or set a different API_PORT in .env.`);
@@ -226,3 +282,12 @@ server.on('error', (error) => {
   process.exitCode = 1;
 });
 server.listen(port, () => console.log(`ARC-Shield API listening on http://localhost:${port}`));
+
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.on(signal, () => {
+    server.close(async () => {
+      await closeIncidentStore().catch((error) => console.error('Database shutdown error:', error.message));
+      process.exit(0);
+    });
+  });
+}
