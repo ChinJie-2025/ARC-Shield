@@ -4,6 +4,12 @@ ARC-Shield is a safety and resilience dashboard prototype for a multi-level prop
 
 > **Prototype notice:** The maps, telemetry, role switcher, and recommendations are demonstrations. Do not use this prototype for real emergency decisions. Follow on-site instructions and contact emergency services when needed.
 
+## Use the deployed website
+
+Open the deployed website at [arc-shield-1.onrender.com](https://arc-shield-1.onrender.com/). Visitors do not need to install Node.js, clone this repository, or run npm commands.
+
+The Render deployment must have `GEMINI_API_KEY` configured in its environment variables for Gemini-powered report reviews and tier summaries. A local `.env` file is only used when running the project on a developer's computer; it is not uploaded to Render automatically.
+
 ## What it does
 
 ### Resident dashboard
@@ -40,7 +46,7 @@ The role switch in the navigation is a demo access selector, not production auth
 - Node.js 20.19+ or 22.12+
 - npm
 
-## Start locally
+## Run locally (for development)
 
 Install packages from the project directory:
 
