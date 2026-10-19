@@ -1,142 +1,114 @@
-.page-hero-backdrop-container {
+/* ==========================================================================
+   Page hero: compact navy banner used at the top of inner pages
+   ========================================================================== */
+
+.as-page-hero {
   position: relative;
-  width: 100%;
-  height: 38vh;
-  min-height: 320px;
-  max-height: 420px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: -74px; /* Pulls background photo under floating glass pill navbar */
-  margin-bottom: 2rem;
+  isolation: isolate;
+  background: var(--as-navy-950);
+  color: #ffffff;
   overflow: hidden;
+  margin-bottom: 2rem;
 }
 
-.page-hero-img-shell {
+.as-page-hero__media {
   position: absolute;
   inset: 0;
-  z-index: 0;
-  background-color: #0f172a;
+  z-index: -1;
 }
 
-.page-hero-backdrop-photo {
+.as-page-hero__img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center 40%;
-  filter: brightness(0.8) contrast(1.08);
 }
 
-.page-hero-scrim-layer {
+.as-page-hero__scrim {
   position: absolute;
   inset: 0;
-  background: 
-    linear-gradient(180deg, rgba(15, 23, 42, 0.45) 0%, rgba(15, 23, 42, 0.2) 50%, rgba(248, 250, 252, 0.96) 96%, #f8fafc 100%),
-    radial-gradient(circle at 50% 50%, rgba(2, 132, 199, 0.18) 0%, transparent 70%);
+  background: linear-gradient(
+    90deg,
+    rgba(10, 27, 51, 0.96) 0%,
+    rgba(10, 27, 51, 0.88) 50%,
+    rgba(10, 27, 51, 0.65) 100%
+  );
 }
 
-.page-hero-content-anchor {
-  position: relative;
-  z-index: 10;
-  width: 100%;
-  max-width: 1400px;
-  padding: 3rem 2rem 0 2rem;
-  display: flex;
-  justify-content: center;
+.as-page-hero__inner {
+  max-width: var(--as-page-max);
+  margin: 0 auto;
+  padding: 3rem var(--as-page-gutter);
 }
 
-.page-hero-frosted-card {
-  background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(28px) saturate(200%);
-  -webkit-backdrop-filter: blur(28px) saturate(200%);
-  border: 1px solid rgba(255, 255, 255, 0.95);
-  box-shadow: 0 20px 45px -12px rgba(15, 23, 42, 0.12);
-  border-radius: 28px;
-  padding: 2.25rem 3rem;
-  max-width: 860px;
-  width: 100%;
-  text-align: center;
+.as-page-hero__tags {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
-  animation: heroPlateEntrance 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.page-hero-tags {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 0.75rem;
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.9rem;
 }
 
-.page-hero-kicker {
+.as-page-hero__tags:empty {
+  display: none;
+}
+
+.as-page-hero__kicker {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  background: rgba(2, 132, 199, 0.1);
-  border: 1px solid rgba(2, 132, 199, 0.25);
-  color: #0284c7;
-  padding: 0.3rem 0.85rem;
-  border-radius: 999px;
-  font-size: 0.6875rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-}
-
-.page-hero-pip {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #0284c7;
-}
-
-.page-hero-badge-pill {
-  font-size: 0.6875rem;
+  gap: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  background: rgba(0, 0, 0, 0.05);
-  color: #475569;
-  padding: 0.3rem 0.75rem;
-  border-radius: 999px;
-  font-family: monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #7dd3fc;
 }
 
-.page-hero-headline {
-  font-size: 2.25rem;
+.as-page-hero__kicker::before {
+  content: '';
+  width: 28px;
+  height: 2px;
+  background: #38bdf8;
+}
+
+.as-page-hero__badge {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: var(--as-radius-sm);
+  font-family: var(--as-font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.as-page-hero__title {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
   font-weight: 800;
-  letter-spacing: -0.03em;
-  color: #0f172a;
-  margin: 0 0 0.65rem 0;
   line-height: 1.15;
+  letter-spacing: -0.025em;
+  color: #ffffff;
 }
 
-.page-hero-headline span {
-  color: #0284c7;
-  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+.as-page-hero__title span {
+  color: #7dd3fc;
 }
 
-.page-hero-summary {
-  font-size: 0.95rem;
-  line-height: 1.6;
-  color: #475569;
-  margin: 0;
+.as-page-hero__lead {
   max-width: 680px;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #cbd5e1;
 }
 
 @media (max-width: 900px) {
-  .page-hero-backdrop-container {
-    height: auto;
-    min-height: 380px;
-    margin-top: -60px;
-    padding-top: 4.5rem;
+  .as-page-hero__inner {
+    padding-top: 2.25rem;
+    padding-bottom: 2.25rem;
   }
-  .page-hero-frosted-card {
-    padding: 1.75rem 1.5rem;
-    border-radius: 22px;
-  }
-  .page-hero-headline {
-    font-size: 1.75rem;
+
+  .as-page-hero__scrim {
+    background: rgba(10, 27, 51, 0.9);
   }
 }

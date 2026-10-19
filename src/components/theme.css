@@ -1,0 +1,142 @@
+/* ==========================================================================
+   ARC-SHIELD shared theme: design tokens + base button styles.
+   Imported by Navigation, HomeHero, PageHero, LoginModal and Disclaimer.
+   ========================================================================== */
+
+:root {
+  /* Colour */
+  --as-navy-950: #0a1b33;
+  --as-navy-900: #0f2744;
+  --as-navy-800: #17355c;
+  --as-ink: #0f172a;
+  --as-text: #334155;
+  --as-muted: #64748b;
+  --as-line: #e2e8f0;
+  --as-line-strong: #cbd5e1;
+  --as-surface: #ffffff;
+  --as-surface-alt: #f8fafc;
+  --as-accent: #0369a1;
+  --as-accent-hover: #075985;
+  --as-accent-soft: #e0f2fe;
+  --as-success: #047857;
+  --as-success-soft: #ecfdf5;
+  --as-warning: #b45309;
+  --as-warning-soft: #fffbeb;
+  --as-danger: #b91c1c;
+  --as-danger-soft: #fef2f2;
+
+  /* Shape + depth */
+  --as-radius-sm: 6px;
+  --as-radius-md: 10px;
+  --as-radius-lg: 14px;
+  --as-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --as-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --as-shadow-lg: 0 24px 48px -16px rgba(15, 23, 42, 0.35);
+
+  /* Layout */
+  --as-nav-height: 64px;
+  --as-page-max: 1400px;
+  --as-page-gutter: 2rem;
+
+  --as-focus-ring: 0 0 0 3px rgba(3, 105, 161, 0.35);
+  --as-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --as-page-gutter: 1rem;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Buttons
+   -------------------------------------------------------------------------- */
+.as-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.7rem 1.25rem;
+  border-radius: var(--as-radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.as-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--as-focus-ring);
+}
+
+.as-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.as-btn--sm {
+  padding: 0.45rem 0.8rem;
+  font-size: 0.8125rem;
+}
+
+.as-btn--lg {
+  padding: 0.9rem 1.5rem;
+  font-size: 0.9375rem;
+}
+
+.as-btn--block {
+  width: 100%;
+}
+
+.as-btn--primary {
+  background: var(--as-accent);
+  color: #ffffff;
+}
+.as-btn--primary:hover:not(:disabled) {
+  background: var(--as-accent-hover);
+}
+
+.as-btn--secondary {
+  background: #ffffff;
+  color: var(--as-ink);
+  border-color: var(--as-line-strong);
+}
+.as-btn--secondary:hover:not(:disabled) {
+  background: var(--as-surface-alt);
+  border-color: #94a3b8;
+}
+
+/* For use on dark (navy) backgrounds */
+.as-btn--light {
+  background: #ffffff;
+  color: var(--as-navy-900);
+}
+.as-btn--light:hover:not(:disabled) {
+  background: #e0f2fe;
+}
+
+.as-btn--outline-light {
+  background: transparent;
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+.as-btn--outline-light:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #ffffff;
+}
+
+.as-btn--light:focus-visible,
+.as-btn--outline-light:focus-visible {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .as-btn {
+    transition: none;
+  }
+}
