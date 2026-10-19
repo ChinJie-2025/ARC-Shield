@@ -4,18 +4,18 @@ import './LoginModal.css';
 
 const PRESET_ACCOUNTS = [
   {
-    role: 'Property Staff',
-    name: 'Officer Alex Tan',
-    id: 'STAFF-8841',
-    access: 'Field Operations & Dispatch',
-    avatar: 'AT',
+    role: 'Resident',
+    name: 'Resident User',
+    id: 'RES-1001',
+    access: 'Report hazards & view safety tools',
+    avatar: 'RU',
     pin: '1234',
   },
   {
     role: 'Executive',
     name: 'Dir. Marcus Vance',
     id: 'EXEC-0012',
-    access: 'C-Level Escalations & Governance',
+    access: 'Incident oversight & executive summaries',
     avatar: 'MV',
     pin: '8888',
   },
@@ -101,7 +101,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
             </span>
             <span className="as-login__brand-text">
               <strong>ARC-SHIELD</strong>
-              <span>Identity &amp; Access</span>
+              <span>Resident &amp; executive access</span>
             </span>
           </div>
           <button type="button" className="as-login__close" onClick={onClose} aria-label="Close sign in">
@@ -114,14 +114,14 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
 
         <form onSubmit={handleAuthenticate} className="as-login__body">
           <div>
-            <h2 id="login-title" className="as-login__title">Sign in to the console</h2>
+            <h2 id="login-title" className="as-login__title">Choose your dashboard</h2>
             <p className="as-login__lead">
-              Choose an operator profile and enter its PIN to open a session with the matching permissions.
+              Residents can report hazards and view safety tools. Executives can review reports and response operations.
             </p>
           </div>
 
           <div>
-            <span className="as-login__label" id="profile-label">Operator profile</span>
+            <span className="as-login__label" id="profile-label">Choose access</span>
             <div className="as-login__profiles" role="radiogroup" aria-labelledby="profile-label">
               {PRESET_ACCOUNTS.map((acc) => {
                 const isSelected = selectedRole.role === acc.role;
@@ -148,7 +148,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
 
           <div>
             <div className="as-login__pin-row">
-              <label htmlFor="operator-pin" className="as-login__label">Operator PIN</label>
+              <label htmlFor="operator-pin" className="as-login__label">Demo access PIN</label>
               <span className="as-login__demo-hint">Demo PIN: {selectedRole.pin}</span>
             </div>
             <div className="as-login__pin-shell">

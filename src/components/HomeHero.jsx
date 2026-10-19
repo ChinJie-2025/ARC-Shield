@@ -8,7 +8,7 @@ const CAPABILITIES = [
   'Predictive flood surge defense',
 ];
 
-export default function HomeHero({ onExplore, onReportIncident, activeIncidentCount = 0 }) {
+export default function HomeHero({ onExplore, onReportIncident, activeIncidentCount = 0, residentView = false }) {
   const hasHazards = activeIncidentCount > 0;
 
   return (
@@ -32,19 +32,21 @@ export default function HomeHero({ onExplore, onReportIncident, activeIncidentCo
           </h1>
 
           <p className="as-hero__lead">
-            Real-time multi-sensor telemetry, dynamic floor egress rerouting, and predictive hydrological surge defense deployed across corporate asset portfolios.
+            {residentView
+              ? 'View your facility status, find a clear route across every level, and report hazards that need attention.'
+              : 'Real-time multi-sensor telemetry, dynamic floor egress rerouting, and predictive hydrological surge defense deployed across corporate asset portfolios.'}
           </p>
 
           <div className="as-hero__cta">
-            <button type="button" className="as-btn as-btn--light as-btn--lg" onClick={onReportIncident}>
+            {onReportIncident && <button type="button" className="as-btn as-btn--light as-btn--lg" onClick={onReportIncident}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
               <span>Report an Incident</span>
-            </button>
+            </button>}
 
             <button type="button" className="as-btn as-btn--outline-light as-btn--lg" onClick={onExplore}>
-              <span>Launch Command Console</span>
+              <span>{residentView ? 'View evacuation route' : 'Launch Command Console'}</span>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <polyline points="9 18 15 12 9 6" />
               </svg>
