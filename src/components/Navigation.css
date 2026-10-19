@@ -1,146 +1,324 @@
-.ios-nav-outer {
+/* ==========================================================================
+   VisionOS Designated Floating Capsule
+   ========================================================================== */
+
+.vision-nav-wrapper {
   position: sticky;
-  top: 14px;
-  z-index: 99;
+  top: 16px;
+  z-index: 100;
   display: flex;
   justify-content: center;
   padding: 0 1.5rem;
-  pointer-events: none;
+  pointer-events: none; /* Allows clicks around the pill */
 }
 
-.ios-nav-capsule {
+.vision-nav-capsule {
   pointer-events: auto;
-  width: 100%;
-  max-width: 1280px;
-  height: 60px;
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(24px) saturate(190%);
-  -webkit-backdrop-filter: blur(24px) saturate(190%);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.04);
-  border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 1.25rem;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  gap: 1.5rem;
+  padding: 6px 8px 6px 14px;
+  
+  /* Multi-stage Apple Liquid Glass Layer */
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(32px) saturate(210%);
+  -webkit-backdrop-filter: blur(32px) saturate(210%);
+  
+  /* Specular Edge Highlights */
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 
+    0 18px 38px -10px rgba(15, 23, 42, 0.12),
+    0 4px 12px rgba(0, 0, 0, 0.03),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.04);
+  
+  border-radius: 999px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.ios-brand-box {
+.vision-nav-capsule:hover {
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 
+    0 22px 44px -10px rgba(15, 23, 42, 0.15),
+    0 6px 16px rgba(0, 0, 0, 0.04),
+    inset 0 1px 2px 0 rgba(255, 255, 255, 1);
+  transform: translateY(-1px);
+}
+
+/* 1. Hardware Brand Block */
+.vision-brand-block {
   display: flex;
   align-items: center;
   gap: 0.65rem;
+  cursor: pointer;
+  user-select: none;
+  padding-right: 0.5rem;
 }
 
-.ios-brand-icon {
-  width: 32px;
-  height: 32px;
+.vision-logo-pod {
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: #0284c7;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 3px 8px rgba(2, 132, 199, 0.3);
+  box-shadow: 0 3px 8px rgba(2, 132, 199, 0.32);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.ios-brand-text {
+.vision-brand-block:hover .vision-logo-pod {
+  transform: scale(1.08) rotate(4deg);
+}
+
+.vision-brand-typography {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  gap: 0.35rem;
 }
 
-.brand-primary-name {
+.brand-primary-title {
+  font-size: 0.8125rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
   color: #0f172a;
 }
 
-.brand-dot {
+.brand-dot-separator {
   color: #cbd5e1;
+  font-size: 0.75rem;
+  font-weight: 300;
 }
 
-.brand-secondary-tag {
-  color: #0284c7;
+.brand-secondary-label {
   font-size: 0.6875rem;
-  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: #0284c7;
+  letter-spacing: 0.05em;
+  font-family: monospace;
 }
 
-/* Apple Segmented Bar */
-.ios-segmented-control {
+/* 2. Tactile Segmented Track */
+.vision-segmented-track {
   display: flex;
   align-items: center;
-  background: rgba(0, 0, 0, 0.04);
-  padding: 4px;
+  background: rgba(15, 23, 42, 0.05);
+  padding: 3px;
   border-radius: 999px;
-  border: 1px solid rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04);
+  gap: 2px;
 }
 
-.ios-segment-item {
+.vision-segment-pill {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   background: transparent;
   border: none;
-  padding: 0.45rem 1.15rem;
+  padding: 0.5rem 1rem;
   font-size: 0.8125rem;
   font-weight: 600;
   color: #64748b;
   border-radius: 999px;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
 }
 
-.ios-segment-item:hover {
+.tab-glyph {
+  opacity: 0.7;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.tab-caption {
+  letter-spacing: -0.01em;
+}
+
+.vision-segment-pill:hover {
   color: #0f172a;
 }
 
-.ios-segment-item.is-active {
+.vision-segment-pill:hover .tab-glyph {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+/* Active Segment State */
+.vision-segment-pill.is-active {
   background: #ffffff;
   color: #0f172a;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.04);
+  font-weight: 700;
+  box-shadow: 
+    0 3px 10px rgba(0, 0, 0, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-.ios-system-badge {
+.vision-segment-pill.is-active .tab-glyph {
+  color: #0284c7;
+  opacity: 1;
+}
+
+/* 3. Right Telemetry Radar Beacon */
+.vision-status-capsule {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: #059669;
+  gap: 0.55rem;
   background: rgba(16, 185, 129, 0.08);
-  padding: 0.3rem 0.75rem;
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  padding: 0.35rem 0.85rem 0.35rem 0.75rem;
   border-radius: 999px;
-  border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
-.ios-badge-pulse {
+.radar-ping-chassis {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.radar-core-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: #10b981;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.4);
 }
 
-@media (max-width: 900px) {
-  .ios-nav-outer {
+.radar-outer-ripple {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.4);
+  animation: radarEcho 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+@keyframes radarEcho {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(3.2); opacity: 0; }
+}
+
+.radar-text-label {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #059669;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 960px) {
+  .vision-nav-wrapper {
     padding: 0 0.75rem;
-    top: 8px;
+    top: 10px;
   }
-  .ios-nav-capsule {
-    height: auto;
-    border-radius: 20px;
-    padding: 0.75rem 1rem;
-    flex-direction: column;
+  .vision-nav-capsule {
+    padding: 6px 8px;
     gap: 0.75rem;
+    max-width: 100%;
+    overflow-x: auto;
   }
-  .ios-system-badge {
+  .vision-status-capsule {
+    display: none; /* Preserves compact width on smaller tablets */
+  }
+  .vision-brand-typography {
     display: none;
   }
-  .ios-segmented-control {
-    width: 100%;
-    overflow-x: auto;
-    justify-content: space-between;
-  }
-  .ios-segment-item {
-    padding: 0.4rem 0.75rem;
+  .vision-segment-pill {
+    padding: 0.45rem 0.75rem;
     font-size: 0.75rem;
   }
+}
+/* Authenticated Session Badge in Floating Capsule */
+.vision-nav-auth-tray {
+  display: flex;
+  align-items: center;
+  padding-left: 0.5rem;
+}
+
+.session-user-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  padding: 3px 8px 3px 4px;
+  border-radius: 999px;
+}
+
+.session-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.session-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.session-role-tag {
+  font-size: 0.625rem;
+  font-weight: 800;
+  color: #0284c7;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+}
+
+.session-name-text {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.btn-switch-account {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #475569;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.15s;
+}
+
+.btn-switch-account:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.btn-signin-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);
+  transition: all 0.15s;
+}
+
+.btn-signin-trigger:hover {
+  background: #0369a1;
+  transform: translateY(-1px);
 }

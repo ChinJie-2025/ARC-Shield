@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { classifyIncident } from '../data/incidentTriage';
 import './SafetyDashboard.css';
 
@@ -136,18 +136,35 @@ function IncidentCard({ incident, onClaim, onRespond, onVerify, now, variant = '
   );
 }
 
-export default function SafetyDashboard({ incidents, setIncidents }) {
+export default function SafetyDashboard({ incidents, setIncidents, currentRole = 'Property Staff' }) {
+  const role = currentRole; // Driven by the authenticated session
+
+  // ---- State (these were missing) ----
+  const [now, setNow] = useState(() => Date.now());
+  const [viewMode, setViewMode] = useState('priority');
   const [verifyModal, setVerifyModal] = useState(null);
   const [evidenceMsg, setEvidenceMsg] = useState('');
   const [evidencePhoto, setEvidencePhoto] = useState('');
-  const [now, setNow] = useState(Date.now());
-  const [role, setRole] = useState('Property Staff');
-  const [viewMode, setViewMode] = useState('priority');
 
+  // Live clock tick
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const resetModal = () => {
+    setVerifyModal(null);
+    setEvidenceMsg('');
+    setEvidencePhoto('');
+  };
+
+  // Cancel / dismiss: discard the preview blob
+  const closeModal = () => {
+    if (evidencePhoto && evidencePhoto.startsWith('blob:')) {
+      URL.revokeObjectURL(evidencePhoto);
+    }
+    resetModal();
+  };
 
   // Keyboard shortcut listener to close modal on Escape
   useEffect(() => {
@@ -158,7 +175,7 @@ export default function SafetyDashboard({ incidents, setIncidents }) {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [verifyModal]);
+  }, [verifyModal, evidencePhoto]);
 
   const claim = (id) =>
     setIncidents((items) =>
@@ -180,15 +197,6 @@ export default function SafetyDashboard({ incidents, setIncidents }) {
     }
   };
 
-  const closeModal = () => {
-    if (evidencePhoto && evidencePhoto.startsWith('blob:')) {
-      URL.revokeObjectURL(evidencePhoto);
-    }
-    setVerifyModal(null);
-    setEvidenceMsg('');
-    setEvidencePhoto('');
-  };
-
   const submitVerification = (event) => {
     event.preventDefault();
     if (!evidenceMsg.trim() && !evidencePhoto) return;
@@ -204,7 +212,8 @@ export default function SafetyDashboard({ incidents, setIncidents }) {
           : item
       )
     );
-    closeModal();
+    // Do not revoke the blob URL here: the saved incident still uses it.
+    resetModal();
   };
 
   const active = useMemo(() => incidents.filter((item) => item.status !== 'Resolved'), [incidents]);
@@ -283,15 +292,8 @@ export default function SafetyDashboard({ incidents, setIncidents }) {
             LIVE DISPATCH PIPELINE
           </div>
           <div className="perspective-dropdown-box">
-            <span className="dropdown-label">Console:</span>
-            <select
-              className="role-native-select"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-            >
-              <option>Property Staff</option>
-              <option>Executive</option>
-            </select>
+            <span className="dropdown-label">Session:</span>
+            <span style={{ fontWeight: 800, color: '#0f172a' }}>{role}</span>
           </div>
         </div>
       </header>
