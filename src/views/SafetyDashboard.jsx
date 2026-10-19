@@ -1,5 +1,4 @@
 ﻿import React, { useEffect, useState, useMemo } from 'react';
-import { initialIncidents } from '../data/mockData';
 import { classifyIncident } from '../data/incidentTriage';
 import './SafetyDashboard.css';
 
@@ -137,26 +136,29 @@ function IncidentCard({ incident, onClaim, onRespond, onVerify, now, variant = '
   );
 }
 
-export default function SafetyDashboard({ newIncidents = [] }) {
-  const [incidents, setIncidents] = useState(initialIncidents);
+export default function SafetyDashboard({ incidents, setIncidents }) {
   const [verifyModal, setVerifyModal] = useState(null);
   const [evidenceMsg, setEvidenceMsg] = useState('');
   const [evidencePhoto, setEvidencePhoto] = useState('');
   const [now, setNow] = useState(Date.now());
   const [role, setRole] = useState('Property Staff');
-  const [viewMode, setViewMode] = useState('priority'); // 'priority' or 'pipeline'
-
-  useEffect(() => {
-    setIncidents((items) => [
-      ...newIncidents.filter((newItem) => !items.some((item) => item.id === newItem.id)),
-      ...items
-    ]);
-  }, [newIncidents]);
+  const [viewMode, setViewMode] = useState('priority');
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Keyboard shortcut listener to close modal on Escape
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && verifyModal) {
+        closeModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [verifyModal]);
 
   const claim = (id) =>
     setIncidents((items) =>
@@ -197,7 +199,7 @@ export default function SafetyDashboard({ newIncidents = [] }) {
               ...item,
               status: 'Resolved',
               evidence: evidenceMsg.trim() || 'Visual audit confirmed',
-              evidencePhoto
+              evidencePhoto,
             }
           : item
       )
@@ -240,7 +242,6 @@ export default function SafetyDashboard({ newIncidents = [] }) {
     [incidents]
   );
 
-  // Groupings for Priority View
   const criticalTier = useMemo(
     () => active.filter((item) => ['Critical', 'High'].includes(item.risk)),
     [active]
@@ -297,7 +298,6 @@ export default function SafetyDashboard({ newIncidents = [] }) {
 
       {/* Asymmetric Tiered KPI Cards */}
       <section className="kpi-hierarchy-grid">
-        {/* Dominant Urgent KPI Card */}
         <div className={`kpi-hero-card ${highCriticalCount > 0 ? 'kpi-hero-active' : ''}`}>
           <div className="kpi-hero-head">
             <div>
@@ -314,7 +314,6 @@ export default function SafetyDashboard({ newIncidents = [] }) {
           </div>
         </div>
 
-        {/* Supporting Secondary Metric Cards */}
         <div className="kpi-card-subtle">
           <div className="subtle-label-row">
             <span>Executive Escalations</span>
@@ -353,7 +352,9 @@ export default function SafetyDashboard({ newIncidents = [] }) {
               <span className="spotlight-flame">⚡</span>
               <span className="spotlight-tag">HIGHEST PRIORITY INCIDENT REQUIRES DISPATCH</span>
             </div>
-            <span className="spotlight-time">Reported {new Date(urgentIncident.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            <span className="spotlight-time">
+              Reported {new Date(urgentIncident.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
           </div>
 
           <div className="spotlight-body-layout">
@@ -445,7 +446,6 @@ export default function SafetyDashboard({ newIncidents = [] }) {
       {/* VIEW 1: PRIORITY HIERARCHY MATRIX */}
       {viewMode === 'priority' && (
         <div className="priority-hierarchy-container">
-          {/* TIER 1: CRITICAL & HIGH */}
           <div className="hierarchy-lane lane-critical">
             <div className="lane-header-row">
               <div className="lane-title-cluster">
@@ -475,9 +475,7 @@ export default function SafetyDashboard({ newIncidents = [] }) {
             </div>
           </div>
 
-          {/* TWO COLUMN GRID FOR MODERATE & LOW */}
           <div className="hierarchy-split-row">
-            {/* TIER 2: MODERATE */}
             <div className="hierarchy-lane lane-moderate">
               <div className="lane-header-row">
                 <div className="lane-title-cluster">
@@ -506,7 +504,6 @@ export default function SafetyDashboard({ newIncidents = [] }) {
               </div>
             </div>
 
-            {/* TIER 3: ROUTINE & RESOLVED */}
             <div className="hierarchy-lane lane-routine">
               <div className="lane-header-row">
                 <div className="lane-title-cluster">
@@ -581,9 +578,16 @@ export default function SafetyDashboard({ newIncidents = [] }) {
         </div>
       )}
 
-      {/* Verification Modal */}
+      {/* Modal with Scrim Click & Keyboard Dismissal */}
       {verifyModal && (
-        <div className="ios-modal-scrim" role="dialog" aria-modal="true">
+        <div
+          className="ios-modal-scrim"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeModal();
+          }}
+        >
           <form className="ios-modal-card" onSubmit={submitVerification}>
             <div className="modal-header-line">
               <div>
@@ -593,7 +597,9 @@ export default function SafetyDashboard({ newIncidents = [] }) {
                   <strong>{verifyModal.id}</strong> • {verifyModal.location}
                 </p>
               </div>
-              <button type="button" className="btn-modal-dismiss" onClick={closeModal}>✕</button>
+              <button type="button" className="btn-modal-dismiss" onClick={closeModal} aria-label="Close dialog">
+                ✕
+              </button>
             </div>
 
             <div className="modal-form-body">

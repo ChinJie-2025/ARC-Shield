@@ -13,18 +13,18 @@ import {
 import { FLOOD_SCENARIOS } from '../data/floodScenarios';
 import './FloodResilience.css';
 
-function MetricKpiCard({ title, value, unit, status = 'default', hint }) {
+function HydroMetricCard({ title, value, unit, status = 'nominal', subtext }) {
   return (
-    <div className={`hydro-kpi-card status-${status}`}>
-      <div className="hydro-kpi-header">
-        <span className="hydro-kpi-title">{title}</span>
-        <span className="hydro-status-pip" />
+    <div className={`hydro-glass-card status-${status}`}>
+      <div className="card-top-indicator">
+        <span className="card-title-text">{title}</span>
+        <span className={`status-bubble-pip pip-${status}`} />
       </div>
-      <div className="hydro-kpi-body">
-        <span className="hydro-kpi-val">{value}</span>
-        {unit && <span className="hydro-kpi-unit">{unit}</span>}
+      <div className="card-metric-value-row">
+        <span className="metric-large-num">{value}</span>
+        {unit && <span className="metric-unit-tag">{unit}</span>}
       </div>
-      <div className="hydro-kpi-hint">{hint}</div>
+      <span className="card-sub-footnote">{subtext}</span>
     </div>
   );
 }
@@ -35,50 +35,43 @@ function HydrologicalTrendChart({ title, readings, dataKey, unit, color = '#0284
   const maxVal = Math.max(...values);
   const range = maxVal - minVal || 1;
 
-  // Compute SVG polyline coordinates
   const points = values
     .map((val, idx) => {
-      const x = 15 + (idx / Math.max(values.length - 1, 1)) * 570;
-      const y = 135 - ((val - minVal) / range) * 110;
+      const x = 16 + (idx / Math.max(values.length - 1, 1)) * 568;
+      const y = 135 - ((val - minVal) / range) * 105;
       return `${x},${y}`;
     })
     .join(' ');
 
-  // Compute closed polygon for area gradient fill
-  const areaPoints = `15,135 ${points} 585,135`;
+  const areaPoints = `16,140 ${points} 584,140`;
 
   return (
-    <div className="trend-card-surface">
-      <div className="trend-card-head">
+    <div className="trend-glass-surface">
+      <div className="trend-surface-head">
         <div>
-          <h4 className="trend-title">{title}</h4>
-          <span className="trend-sub">Telemetry window ({readings.length} epochs)</span>
+          <h4 className="trend-headline">{title}</h4>
+          <span className="trend-window-sub">Rolling telemetry buffer ({readings.length} epochs)</span>
         </div>
-        <div className="trend-range-badge">
-          <span>Min: {minVal.toFixed(2)}</span>
-          <span className="sep">•</span>
-          <span>Max: {maxVal.toFixed(2)} {unit}</span>
+        <div className="trend-pills-cluster">
+          <span className="trend-bound-pill">Min: {minVal.toFixed(2)}</span>
+          <span className="trend-bound-pill">Max: {maxVal.toFixed(2)} {unit}</span>
         </div>
       </div>
 
-      <div className="trend-svg-container">
-        <svg viewBox="0 0 600 150" className="hydro-chart-svg" preserveAspectRatio="none">
+      <div className="trend-svg-frame">
+        <svg viewBox="0 0 600 150" className="hydro-vector-chart" preserveAspectRatio="none">
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity="0.32" />
+              <stop offset="0%" stopColor={color} stopOpacity="0.35" />
               <stop offset="100%" stopColor={color} stopOpacity="0.0" />
             </linearGradient>
           </defs>
 
-          {/* Background Grid Guide Lines */}
-          <line x1="15" y1="25" x2="585" y2="25" stroke="#e2e8f0" strokeDasharray="3 3" />
-          <line x1="15" y1="80" x2="585" y2="80" stroke="#e2e8f0" strokeDasharray="3 3" />
-          <line x1="15" y1="135" x2="585" y2="135" stroke="#cbd5e1" strokeWidth="1" />
+          <line x1="16" y1="30" x2="584" y2="30" stroke="rgba(0, 0, 0, 0.04)" strokeDasharray="4 4" />
+          <line x1="16" y1="80" x2="584" y2="80" stroke="rgba(0, 0, 0, 0.04)" strokeDasharray="4 4" />
+          <line x1="16" y1="135" x2="584" y2="135" stroke="rgba(0, 0, 0, 0.08)" strokeWidth="1" />
 
-          {/* Area Gradient */}
           <polygon points={areaPoints} fill={`url(#${gradientId})`} />
-
-          {/* Curve Stroke */}
           <polyline
             points={points}
             fill="none"
@@ -90,43 +83,38 @@ function HydrologicalTrendChart({ title, readings, dataKey, unit, color = '#0284
         </svg>
       </div>
 
-      <div className="trend-x-axis">
+      <div className="trend-timeline-legend">
         <span>T - {readings.length * 5}s</span>
-        <span>Midpoint Epoch</span>
-        <span>T - 0s (Latest)</span>
+        <span>Mid-Window Horizon</span>
+        <span>Live Epoch (T-0)</span>
       </div>
     </div>
   );
 }
 
-function ThresholdField({ label, value, min, max, step, unit, onChange }) {
+function ThresholdSliderRow({ label, value, min, max, step, unit, onChange }) {
   return (
-    <div className="threshold-field-group">
-      <div className="field-meta">
-        <span className="field-name">{label}</span>
-        <span className="field-unit">{unit}</span>
+    <div className="slider-control-row">
+      <div className="slider-label-row">
+        <span className="slider-title">{label}</span>
+        <span className="slider-val-tag">
+          {value} <small>{unit}</small>
+        </span>
       </div>
-      <div className="field-input-wrapper">
-        <input
-          type="number"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={(e) => {
-            const next = Number(e.target.value);
-            if (e.target.value !== '' && Number.isFinite(next)) {
-              onChange(next);
-            }
-          }}
-          className="threshold-input"
-        />
-      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="ios-slider-input"
+      />
     </div>
   );
 }
 
-export default function FloodResilience() {
+export default function FloodResilience({ onCriticalSurge = () => {} }) {
   const [mode, setMode] = useState('scenario');
   const [scenario, setScenario] = useState('Normal conditions');
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -172,6 +160,13 @@ export default function FloodResilience() {
     );
   }, [latestReading, thresholds]);
 
+  // Cross-system surge trigger callback
+  useEffect(() => {
+    if (alert && alert.severity === 'CRITICAL') {
+      onCriticalSurge(alert);
+    }
+  }, [alert, onCriticalSurge]);
+
   const updateThreshold = (key, value) => {
     setThresholds((prev) => ({
       ...prev,
@@ -193,7 +188,7 @@ export default function FloodResilience() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `ARC_FloodAlert_${Date.now()}.json`;
+    link.download = `ARC_FloodTelemetry_${Date.now()}.json`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -201,74 +196,70 @@ export default function FloodResilience() {
   };
 
   const recentReadings = [...readings].slice(-8).reverse();
-  const severityClass = (alert?.severity || 'NORMAL').toLowerCase();
+  const severityKey = (alert?.severity || 'NORMAL').toLowerCase();
 
   return (
-    <div className="hydro-root-container">
-      {/* Executive Command Header */}
-      <header className="hydro-topbar">
+    <div className="flood-viewport">
+      <header className="flood-glass-header">
         <div>
-          <div className="hydro-brand-tag">
-            <span>SIME DARBY PROPERTY</span>
-            <span className="dot-divider">•</span>
-            <span>DRAINAGE &amp; RETENTION BASIN TELEMETRY</span>
+          <div className="flood-kicker-line">
+            <span className="kicker-brand">ARC-SHIELD OS</span>
+            <span className="kicker-dot">•</span>
+            <span className="kicker-sub">HYDROLOGICAL SURGE &amp; BASIN TELEMETRY</span>
           </div>
-          <h1 className="hydro-title">Hydrological Flood Resilience Engine</h1>
-          <p className="hydro-desc">
-            Surface drainage runoff modeling, predictive retention pond water levels, and automated barrier triggering matrix.
+          <h1 className="flood-hero-title">Hydrological Flood Resilience Engine</h1>
+          <p className="flood-hero-desc">
+            Surface drainage runoff modeling, predictive retention depth analysis, and automated barrier triggering matrix.
           </p>
         </div>
 
-        <div className="hydro-header-actions">
-          <div className="simulation-mode-pill">
-            <span className={`live-pulse-dot ${mode === 'dynamic' && autoRefresh ? 'is-pulsing' : ''}`} />
-            {mode === 'dynamic' ? 'STREAMING TELEMETRY' : 'STATIC SCENARIO MODEL'}
+        <div className="flood-header-status-box">
+          <div className="telemetry-mode-capsule">
+            <span className={`telemetry-dot ${mode === 'dynamic' && autoRefresh ? 'is-streaming' : ''}`} />
+            <span>{mode === 'dynamic' ? 'STREAMING REAL-TIME' : 'SCENARIO PROFILE'}</span>
           </div>
-          <span className="hub-id-label">BASIN SENSOR NODE #04-WEST</span>
+          <span className="sensor-node-tag">RETENTION BASIN HUB #04-WEST</span>
         </div>
       </header>
 
-      {/* Illustrative Simulation Disclaimer Strip */}
-      <div className="hydro-simulation-banner">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <div className="simulation-glass-disclaimer">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
           <circle cx="12" cy="12" r="10" />
           <line x1="12" y1="8" x2="12" y2="12" />
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
         <span>
-          <strong>SIMULATION ENVIRONMENT:</strong> Stream data represents modeled hydrological conditions. Not connected to active municipal stormwater sluice gates or primary emergency alert siren systems.
+          <strong>MODELED TELEMETRY ONLY:</strong> Data reflects computed hydrological simulation matrices. Not connected to active municipal stormwater sluice gates or primary flood sirens.
         </span>
       </div>
 
-      {/* Main Grid: Control Console & Active Sensor Monitor */}
-      <div className="hydro-main-grid">
-        {/* Left Column: Parameter & Scenario Controller */}
-        <aside className="hydro-control-panel">
-          <div className="panel-section-head">
-            <h3 className="section-title">Telemetry Controller</h3>
-            <span className="section-sub">Configure simulated environmental conditions</span>
+      <div className="flood-main-grid">
+        <aside className="flood-config-panel">
+          <div className="config-head-line">
+            <h3 className="config-title">Runoff Engine Controls</h3>
+            <span className="config-subtitle">Configure environmental simulation curves</span>
           </div>
 
-          <div className="control-form">
-            <label className="controller-group">
-              <span className="controller-label">Simulation Mode</span>
+          <div className="config-body-flow">
+            <div className="config-input-cluster">
+              <label className="config-label">Telemetry Stream Mode</label>
               <select
                 value={mode}
                 onChange={(e) => setMode(e.target.value)}
-                className="hydro-select"
+                className="ios-glass-select"
               >
-                <option value="scenario">Reproducible Scenario Curve</option>
-                <option value="dynamic">Stochastic Dynamic Real-Time</option>
+                <option value="scenario">Reproducible Scenario Profile</option>
+                <option value="dynamic">Dynamic Stochastic Stream</option>
               </select>
-            </label>
+            </div>
 
-            <label className="controller-group">
-              <span className="controller-label">Weather &amp; Runoff Scenario</span>
+            <div className="config-input-cluster">
+              <label className="config-label">Precipitation Scenario</label>
               <select
                 value={scenario}
                 onChange={(e) => setScenario(e.target.value)}
                 disabled={mode === 'dynamic'}
-                className="hydro-select"
+                className="ios-glass-select"
               >
                 {Object.keys(FLOOD_SCENARIOS).map((name) => (
                   <option key={name} value={name}>
@@ -276,60 +267,60 @@ export default function FloodResilience() {
                   </option>
                 ))}
               </select>
-            </label>
+            </div>
 
             {mode === 'dynamic' && (
-              <label className="toggle-checkbox-row">
+              <label className="toggle-stream-row">
                 <input
                   type="checkbox"
                   checked={autoRefresh}
                   onChange={(e) => setAutoRefresh(e.target.checked)}
-                  className="hydro-checkbox"
+                  className="ios-native-checkbox"
                 />
-                <span className="checkbox-text">Generate epoch pulse every 5 seconds</span>
+                <span className="checkbox-caption">Generate live epoch pulse every 5 seconds</span>
               </label>
             )}
 
-            <div className="thresholds-section">
-              <div className="thresholds-header">
-                <span className="thresholds-title">DISPATCH THRESHOLD LIMITS</span>
-                <span className="thresholds-badge">CALIBRATION</span>
+            <div className="thresholds-glass-dock">
+              <div className="thresholds-top">
+                <span className="dock-title">DISPATCH THRESHOLD LIMITS</span>
+                <span className="dock-badge">CALIBRATION</span>
               </div>
 
-              <div className="threshold-grid">
-                <ThresholdField
+              <div className="sliders-stack">
+                <ThresholdSliderRow
                   label="Warning Precipitation"
                   value={thresholds.warningRainfall}
                   unit="mm/h"
-                  min={1}
-                  max={200}
+                  min={5}
+                  max={150}
                   step={5}
                   onChange={(v) => updateThreshold('warningRainfall', v)}
                 />
-                <ThresholdField
+                <ThresholdSliderRow
                   label="Critical Precipitation"
                   value={thresholds.criticalRainfall}
                   unit="mm/h"
-                  min={1}
-                  max={300}
+                  min={20}
+                  max={250}
                   step={5}
                   onChange={(v) => updateThreshold('criticalRainfall', v)}
                 />
-                <ThresholdField
+                <ThresholdSliderRow
                   label="Warning Basin Depth"
                   value={thresholds.warningWater}
                   unit="m"
                   min={0.1}
-                  max={2}
+                  max={2.0}
                   step={0.05}
                   onChange={(v) => updateThreshold('warningWater', v)}
                 />
-                <ThresholdField
-                  label="Critical Spillover Depth"
+                <ThresholdSliderRow
+                  label="Spillover Breach Depth"
                   value={thresholds.criticalWater}
                   unit="m"
-                  min={0.1}
-                  max={3}
+                  min={0.5}
+                  max={3.0}
                   step={0.05}
                   onChange={(v) => updateThreshold('criticalWater', v)}
                 />
@@ -338,56 +329,54 @@ export default function FloodResilience() {
           </div>
         </aside>
 
-        {/* Right Column: Telemetry KPI Cards & Active Hazard Status */}
-        <div className="hydro-telemetry-display">
-          <div className="kpi-banner-row">
-            <MetricKpiCard
+        <div className="flood-readings-column">
+          <div className="hydro-kpis-grid">
+            <HydroMetricCard
               title="Precipitation Intensity"
               value={latestReading.rainfall_mm_h.toFixed(1)}
               unit="mm/h"
-              status={latestReading.rainfall_mm_h >= thresholds.warningRainfall ? 'alert' : 'normal'}
-              hint="Optical sensor array"
+              status={latestReading.rainfall_mm_h >= thresholds.criticalRainfall ? 'critical' : latestReading.rainfall_mm_h >= thresholds.warningRainfall ? 'warning' : 'nominal'}
+              subtext="Optical meteorological sensor"
             />
-            <MetricKpiCard
-              title="Retention Depth"
+            <HydroMetricCard
+              title="Basin Water Depth"
               value={latestReading.water_level_m.toFixed(3)}
               unit="m"
-              status={latestReading.water_level_m >= thresholds.warningWater ? 'alert' : 'normal'}
-              hint="Hydrostatic pressure node"
+              status={latestReading.water_level_m >= thresholds.criticalWater ? 'critical' : latestReading.water_level_m >= thresholds.warningWater ? 'warning' : 'nominal'}
+              subtext="Hydrostatic pressure node"
             />
-            <MetricKpiCard
-              title="Engine Evaluation"
-              value={alert?.severity || 'NORMAL'}
-              status={severityClass}
-              hint="Evaluated against active thresholds"
+            <HydroMetricCard
+              title="Surge Classification"
+              value={alert?.severity || 'NOMINAL'}
+              status={severityKey}
+              subtext="Real-time threshold model"
             />
           </div>
 
-          {/* Active Hazard Evaluation Banner */}
           {alert && (
-            <div className={`hazard-status-card severity-${severityClass}`}>
-              <div className="hazard-header-bar">
-                <div className="hazard-status-indicator">
-                  <span className="status-ping" />
-                  <span className="status-heading-text">
+            <div className={`surge-spotlight-card severity-${severityKey}`}>
+              <div className="surge-spotlight-header">
+                <div className="surge-lead-cluster">
+                  <span className="surge-alert-pip" />
+                  <span className="surge-headline-text">
                     {alert.severity === 'CRITICAL'
-                      ? 'CRITICAL IMMINENT FLOOD HAZARD'
+                      ? 'CRITICAL IMMINENT SURGE & OVERFLOW'
                       : alert.severity === 'WARNING'
-                      ? 'PREPAREDNESS & RETENTION WARNING'
+                      ? 'BASIN CAPACITY PREPAREDNESS ALERT'
                       : 'NORMAL RUNOFF STABILITY'}
                   </span>
                 </div>
-                <span className="severity-pill">{alert.severity}</span>
+                <span className="surge-status-badge">{alert.severity}</span>
               </div>
 
-              <p className="hazard-action-text">{alert.recommended_action}</p>
+              <p className="surge-action-instruction">{alert.recommended_action}</p>
 
               {alert.reasons?.length > 0 ? (
-                <div className="hazard-triggers">
-                  <span className="trigger-label">Active Threshold Triggers:</span>
-                  <ul className="trigger-list">
+                <div className="surge-triggers-wrap">
+                  <span className="triggers-label">Threshold Triggers Active:</span>
+                  <ul className="triggers-list">
                     {alert.reasons.map((reason, idx) => (
-                      <li key={idx} className="trigger-item">
+                      <li key={idx} className="trigger-bullet">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
@@ -397,99 +386,93 @@ export default function FloodResilience() {
                   </ul>
                 </div>
               ) : (
-                <div className="hazard-ok-notice">
-                  All monitored hydraulic sensor thresholds are resting within nominal design margins.
+                <div className="surge-nominal-note">
+                  All retention ponds and culvert headwalls are operating well within designed hydraulic safety margins.
                 </div>
               )}
             </div>
           )}
 
-          {/* Auxiliary Node Status */}
-          <div className="aux-metrics-strip">
-            <div className="aux-metric-item">
-              <span className="aux-label">Peak Window Rainfall</span>
-              <span className="aux-value">
-                {Math.max(...readings.map((r) => r.rainfall_mm_h)).toFixed(1)} mm/h
-              </span>
+          <div className="telemetry-aux-strip">
+            <div className="aux-cell">
+              <span className="aux-caption">Peak Window Rain</span>
+              <span className="aux-reading">{Math.max(...readings.map((r) => r.rainfall_mm_h)).toFixed(1)} mm/h</span>
             </div>
-            <div className="aux-metric-item">
-              <span className="aux-label">Peak Basin Water Level</span>
-              <span className="aux-value">
-                {Math.max(...readings.map((r) => r.water_level_m)).toFixed(3)} m
-              </span>
+            <div className="aux-cell">
+              <span className="aux-caption">Peak Basin Depth</span>
+              <span className="aux-reading">{Math.max(...readings.map((r) => r.water_level_m)).toFixed(3)} m</span>
             </div>
-            <div className="aux-metric-item">
-              <span className="aux-label">Retention Inflow Valve</span>
-              <span className="aux-value">Standby (Manual Bypass)</span>
+            <div className="aux-cell">
+              <span className="aux-caption">Retention Inflow Valve</span>
+              <span className="aux-reading text-blue">Bypass Armed</span>
             </div>
-            <div className="aux-metric-item">
-              <span className="aux-label">Submersible Pumps 1-4</span>
-              <span className="aux-value status-good">Armed &amp; Ready</span>
+            <div className="aux-cell">
+              <span className="aux-caption">Sump Pumps 1-4</span>
+              <span className="aux-reading text-green">Ready (Auto-Float)</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Telemetry Curves */}
-      <section className="hydro-charts-section">
-        <div className="section-title-wrap">
-          <h3 className="section-heading-main">Hydrological Trend Profiles</h3>
-          <span className="section-subtext">Continuous temporal charting across recent observation frames</span>
+      <section className="flood-charts-deck">
+        <div className="charts-heading-box">
+          <h3 className="charts-main-title">Continuous Hydrological Wave Profiles</h3>
+          <span className="charts-sub-note">High-frequency sensor telemetry across recent observation frames</span>
         </div>
 
-        <div className="charts-double-grid">
+        <div className="charts-split-grid">
           <HydrologicalTrendChart
-            title="Precipitation Intensity History"
+            title="Precipitation Intensity Curve"
             readings={readings}
             dataKey="rainfall_mm_h"
             unit="mm/h"
             color="#0284c7"
-            gradientId="rainGrad"
+            gradientId="rainCurveGrad"
           />
           <HydrologicalTrendChart
-            title="Basin Water Level Profile"
+            title="Basin Water Retention Profile"
             readings={readings}
             dataKey="water_level_m"
             unit="m"
             color="#059669"
-            gradientId="waterGrad"
+            gradientId="waterCurveGrad"
           />
         </div>
       </section>
 
-      {/* Historical Telemetry Table & JSON Export */}
-      <div className="hydro-data-split">
-        {/* Data Log Table */}
-        <section className="telemetry-table-card">
-          <div className="table-card-header">
+      <div className="flood-data-dual-grid">
+        <section className="flood-data-card">
+          <div className="data-card-top">
             <div>
-              <h3 className="table-title">Recent Telemetry Frames</h3>
-              <span className="table-sub">Reverse chronological sequence</span>
+              <h3 className="data-card-title">Recent Telemetry Frames</h3>
+              <span className="data-card-sub">Reverse chronological sensor buffer</span>
             </div>
-            <span className="data-points-badge">{recentReadings.length} records</span>
+            <span className="data-count-pill">{recentReadings.length} Frames</span>
           </div>
 
-          <div className="table-wrapper">
-            <table className="hydro-table">
+          <div className="table-scroll-wrap">
+            <table className="ios-glass-table">
               <thead>
                 <tr>
                   <th>Timestamp</th>
-                  <th>Precipitation (mm/h)</th>
-                  <th>Basin Depth (m)</th>
-                  <th>Threshold State</th>
+                  <th>Precipitation</th>
+                  <th>Basin Depth</th>
+                  <th>Evaluation</th>
                 </tr>
               </thead>
               <tbody>
                 {recentReadings.map((r) => {
-                  const isHigh = r.water_level_m >= thresholds.warningWater;
+                  const isElevated = r.water_level_m >= thresholds.warningWater;
                   return (
                     <tr key={r.timestamp}>
-                      <td className="font-mono">{new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</td>
-                      <td>{r.rainfall_mm_h.toFixed(1)}</td>
-                      <td>{r.water_level_m.toFixed(3)}</td>
+                      <td className="font-mono">
+                        {new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      </td>
+                      <td>{r.rainfall_mm_h.toFixed(1)} mm/h</td>
+                      <td>{r.water_level_m.toFixed(3)} m</td>
                       <td>
-                        <span className={`table-status-pill ${isHigh ? 'pill-warning' : 'pill-normal'}`}>
-                          {isHigh ? 'ELEVATED' : 'NOMINAL'}
+                        <span className={`table-status-badge ${isElevated ? 'badge-elevated' : 'badge-nominal'}`}>
+                          {isElevated ? 'ELEVATED' : 'NOMINAL'}
                         </span>
                       </td>
                     </tr>
@@ -500,49 +483,47 @@ export default function FloodResilience() {
           </div>
         </section>
 
-        {/* Structured JSON Payload */}
-        <section className="payload-inspect-card">
-          <div className="payload-head">
+        <section className="flood-data-card">
+          <div className="data-card-top">
             <div>
-              <h3 className="table-title">Structured Alert Object</h3>
-              <span className="table-sub">ARC-Shield microservice dispatch standard</span>
+              <h3 className="data-card-title">Structured Dispatch Payload</h3>
+              <span className="data-card-sub">ARC-Shield microservice audit JSON</span>
             </div>
-            <div className="payload-btns">
-              <button type="button" className="btn-hydro-ghost" onClick={copyAlertJson}>
-                {copiedPayload ? 'Copied' : 'Copy Payload'}
+            <div className="payload-action-btns">
+              <button type="button" className="btn-payload-ghost" onClick={copyAlertJson}>
+                {copiedPayload ? 'Copied' : 'Copy Object'}
               </button>
-              <button type="button" className="btn-hydro-primary" onClick={downloadAlert}>
+              <button type="button" className="btn-payload-primary" onClick={downloadAlert}>
                 Download .JSON
               </button>
             </div>
           </div>
 
-          <pre className="hydro-code-block">
+          <pre className="ios-code-drawer">
             <code>{JSON.stringify(alert, null, 2)}</code>
           </pre>
         </section>
       </div>
 
-      {/* Protocol Guidance Standard */}
-      <footer className="preparedness-footer-card">
-        <h4 className="footer-guide-title">Hydraulic Preparedness &amp; Sluice Intervention Protocols</h4>
-        <div className="protocols-three-col">
-          <div className="protocol-col">
-            <span className="protocol-tag tag-normal">CONDITION NORMAL</span>
-            <p className="protocol-copy">
-              Routine gravity drainage. Facility teams verify retention pond trash screens and culvert headwalls remain free of debris every 72 hours.
+      <footer className="flood-mitigation-dock">
+        <h4 className="mitigation-dock-title">Mitigation &amp; Sluice Intervention Protocols</h4>
+        <div className="mitigation-three-columns">
+          <div className="mitigation-col">
+            <span className="mitigation-pill pill-nominal">CONDITION NOMINAL</span>
+            <p className="mitigation-text">
+              Routine gravity outflow. Maintenance personnel verify trash screens and culvert headwalls remain free of debris every 72 hours.
             </p>
           </div>
-          <div className="protocol-col">
-            <span className="protocol-tag tag-warning">CONDITION WARNING</span>
-            <p className="protocol-copy">
-              Manual inspection of basement sump pits. Standby pumps are placed on automatic float switch triggers. Maintenance teams place flood gates on readiness.
+          <div className="mitigation-col">
+            <span className="mitigation-pill pill-warning">CONDITION WARNING</span>
+            <p className="mitigation-text">
+              Inspect basement sump pits. Submersible pumps 1-4 are engaged on auto-float switch triggers. Modular flood barriers placed on standby.
             </p>
           </div>
-          <div className="protocol-col">
-            <span className="protocol-tag tag-critical">CONDITION CRITICAL</span>
-            <p className="protocol-copy">
-              Immediate deployment of perimeter modular flood barriers. Alert carpark security to relocate vehicles from lowest subterranean tiers.
+          <div className="mitigation-col">
+            <span className="mitigation-pill pill-critical">CONDITION CRITICAL</span>
+            <p className="mitigation-text">
+              Immediate deployment of perimeter modular flood barriers. Alert carpark security to evacuate vehicles from subterranean basements.
             </p>
           </div>
         </div>

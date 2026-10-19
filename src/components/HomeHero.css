@@ -1,0 +1,226 @@
+.official-hero-container {
+  position: relative;
+  width: 100%;
+  height: 54vh;
+  min-height: 480px;
+  max-height: 600px;
+  display: flex;
+  align-items: center; /* Centered vertically in hero section */
+  justify-content: center; /* Centered horizontally */
+  margin-top: -74px; /* Pulls background photo under floating glass pill navbar */
+  margin-bottom: 2.5rem;
+  overflow: hidden;
+}
+
+/* Background image & gradient blends */
+.hero-media-wrapper {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-color: #0f172a;
+}
+
+.hero-backdrop-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 35%;
+  filter: brightness(0.8) contrast(1.08);
+  transform: scale(1.02);
+  transition: transform 10s ease-out;
+}
+
+.official-hero-container:hover .hero-backdrop-img {
+  transform: scale(1.05);
+}
+
+.hero-ambient-scrim {
+  position: absolute;
+  inset: 0;
+  background: 
+    linear-gradient(180deg, rgba(15, 23, 42, 0.45) 0%, rgba(15, 23, 42, 0.2) 50%, rgba(248, 250, 252, 0.95) 96%, #f8fafc 100%),
+    radial-gradient(circle at 50% 50%, rgba(2, 132, 199, 0.2) 0%, transparent 65%);
+}
+
+/* Centered Glass Plate Anchor */
+.hero-content-anchor {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 1400px;
+  padding: 3rem 2rem 0 2rem;
+  display: flex;
+  justify-content: center; /* Center horizontally */
+}
+
+.hero-glass-plate {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 24px 50px -12px rgba(15, 23, 42, 0.15), 0 0 1px rgba(0, 0, 0, 0.08);
+  border-radius: 32px;
+  padding: 2.75rem 3.5rem;
+  max-width: 920px;
+  width: 100%;
+  text-align: center; /* Center all typography */
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Center flex children */
+  animation: heroPlateEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes heroPlateEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.hero-top-cluster {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Center tags */
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.hero-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(2, 132, 199, 0.1);
+  border: 1px solid rgba(2, 132, 199, 0.25);
+  color: #0284c7;
+  padding: 0.35rem 0.95rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.hero-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #0284c7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.25);
+  animation: heroPulse 1.8s infinite;
+}
+
+@keyframes heroPulse {
+  0% { transform: scale(0.95); opacity: 0.7; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.7; }
+}
+
+.hero-metric-chip {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.05);
+  color: #475569;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  font-family: monospace;
+}
+
+.hero-core-title {
+  font-size: 2.65rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+  color: #0f172a;
+  margin: 0 0 1rem 0;
+  text-align: center;
+}
+
+.hero-core-title span {
+  color: #0284c7;
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-core-lead {
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: #475569;
+  margin: 0 auto 1.85rem auto;
+  max-width: 720px;
+  text-align: center;
+}
+
+.hero-cta-group {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Center action buttons */
+  gap: 1.15rem;
+  flex-wrap: wrap;
+}
+
+.btn-hero-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  padding: 0.9rem 1.85rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(2, 132, 199, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-hero-primary:hover {
+  background: #0369a1;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(2, 132, 199, 0.45);
+}
+
+.btn-hero-glass {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: rgba(255, 255, 255, 0.9);
+  color: #0f172a;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  padding: 0.9rem 1.75rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-hero-glass:hover {
+  background: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+
+@media (max-width: 900px) {
+  .official-hero-container {
+    height: auto;
+    min-height: 520px;
+    margin-top: -60px;
+    padding-top: 5rem;
+  }
+  .hero-glass-plate {
+    padding: 2rem 1.5rem;
+    border-radius: 24px;
+  }
+  .hero-core-title {
+    font-size: 1.85rem;
+  }
+  .hero-core-lead {
+    font-size: 0.9rem;
+  }
+}
