@@ -1,65 +1,427 @@
-﻿import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import './EvacuationMap.css';
+import EvacuationScene from './EvacuationScene';
 
-const exits = {
-  main: { label: 'Main Exit', sublabel: 'Stairwell A', x: 760, y: 270 },
-  secondary: { label: 'Secondary Exit', sublabel: 'Stairwell B', x: 100, y: 270 },
-  accessible: { label: 'Accessible Exit', sublabel: 'Evacuation Lift A', x: 450, y: 95 },
-  cargo: { label: 'Assisted Exit', sublabel: 'Cargo Lift', x: 760, y: 95 },
+const NODES = {
+  junc_central: { id: 'junc_central', x: 450, y: 270, label: 'Central Junction 01' },
+  junc_east_aux: { id: 'junc_east_aux', x: 650, y: 270, label: 'East Auxiliary Bay' },
+  junc_cargo_turn: { id: 'junc_cargo_turn', x: 650, y: 95, label: 'Freight Hoistway Turn' },
+  refuge_bay: { id: 'refuge_bay', x: 537, y: 190, label: 'Pressurized Conference Refuge' },
 };
 
-export default function EvacuationMap() {
-  const [mainExitBlocked, setMainExitBlocked] = useState(false);
+const EXITS = {
+  main: {
+    id: 'main',
+    label: 'Primary Exit Portal',
+    sublabel: 'Stairwell A (East Core)',
+    type: 'Fire Stairs',
+    clearance: 'Standard Egress',
+    accessible: false,
+    x: 760,
+    y: 270,
+  },
+  secondary: {
+    id: 'secondary',
+    label: 'Secondary Relief Exit',
+    sublabel: 'Stairwell B (West Core)',
+    type: 'Fire Stairs',
+    clearance: 'Active Alternative',
+    accessible: false,
+    x: 100,
+    y: 270,
+  },
+  accessible: {
+    id: 'accessible',
+    label: 'Direct Evacuation Lift A',
+    sublabel: 'Pressurized Shaft (EN81-76 Standby)',
+    type: 'Accessible Lift',
+    clearance: 'Barrier-Free Direct',
+    accessible: true,
+    x: 450,
+    y: 95,
+  },
+  cargo: {
+    id: 'cargo',
+    label: 'Assisted Service Lift',
+    sublabel: 'Cargo Bay 02 Corridor',
+    type: 'Heavy Freight Hoist',
+    clearance: 'Assisted Clearance',
+    accessible: true,
+    x: 760,
+    y: 95,
+  },
+};
+
+const PRESET_SPAWNS = [
+  { id: 'lobby', label: 'South Lobby Entry', x: 450, y: 420 },
+  { id: 'office', label: 'Office Suite Wing', x: 370, y: 270 },
+  { id: 'conf', label: 'Conference Corridor', x: 540, y: 270 },
+];
+
+export default function EvacuationMap({ activeHazards = [] }) {
+  const [userPos, setUserPos] = useState({ x: 450, y: 420, label: 'South Lobby Entry' });
+  const [stairABlocked, setStairABlocked] = useState(false);
+  const [stairBBlocked, setStairBBlocked] = useState(false);
   const [wheelchairMode, setWheelchairMode] = useState(false);
-  const selectedExit = mainExitBlocked
-    ? wheelchairMode ? 'cargo' : 'secondary'
-    : wheelchairMode ? 'accessible' : 'main';
-  const exit = exits[selectedExit];
-  const routeColor = mainExitBlocked ? '#c66a32' : wheelchairMode ? '#267a9c' : '#27866d';
-  const routePath = {
-    main: 'M 450 420 L 450 270 L 760 270',
-    secondary: 'M 450 420 L 450 270 L 100 270',
-    accessible: 'M 450 420 L 450 95',
-    cargo: 'M 450 420 L 450 270 L 650 270 L 650 95 L 760 95',
-  }[selectedExit];
-  const instructions = {
-    main: ['Head north along the central corridor.', 'Turn right at the junction for Stairwell A.'],
-    secondary: ['Main exit is marked blocked. Do not approach it.', 'Turn left at the central junction for Stairwell B.'],
-    accessible: ['Follow the central corridor north.', 'Use Evacuation Lift A on the accessible route.'],
-    cargo: ['Main exit is marked blocked. Do not approach it.', 'Follow the east corridor to the assisted evacuation lift.'],
-  }[selectedExit];
+  const [gpsTracking, setGpsTracking] = useState(true);
+  const [selectedFloor, setSelectedFloor] = useState(3);
+  const [detailFloor, setDetailFloor] = useState(null);
+  const [gpsMessage, setGpsMessage] = useState('');
 
-  return <div className="evacuation-page">
-    <header className="evacuation-header"><div><p className="eyebrow">PROPERTY OPERATIONS / ROUTE SIMULATION</p><h1>Evacuation route planner</h1><p>Illustrative floor plan with live route changes for blocked exits and accessible evacuation.</p></div><span className="map-demo-badge"><i /> SIMULATION</span></header>
-    <section className="evacuation-controls"><div className="control-copy"><strong>Route conditions</strong><span>Toggle a condition to see the suggested path update.</span></div><label className={`route-toggle ${mainExitBlocked ? 'toggle-danger' : ''}`}><input type="checkbox" checked={mainExitBlocked} onChange={(event) => setMainExitBlocked(event.target.checked)} /><span className="toggle-track" /><span><b>Main exit blocked</b><small>Reroute away from Stairwell A</small></span></label><label className={`route-toggle ${wheelchairMode ? 'toggle-accessible' : ''}`}><input type="checkbox" checked={wheelchairMode} onChange={(event) => setWheelchairMode(event.target.checked)} /><span className="toggle-track" /><span><b>Accessible route</b><small>Use step-free evacuation path</small></span></label></section>
-    <div className="evacuation-layout">
-      <section className="floorplan-card"><div className="floorplan-top"><div><span className="floor-tag">LEVEL 01</span><h2>Site evacuation plan</h2></div><span className="floorplan-live"><i /> ROUTE UPDATED</span></div>
-        <div className="floorplan-scroll"><svg className="floorplan-svg" viewBox="0 0 900 540" role="img" aria-labelledby="map-title map-description" preserveAspectRatio="xMidYMid meet">
-          <title id="map-title">Simulated building evacuation route</title><desc id="map-description">Route from your current location to {exit.label}, {exit.sublabel}. Selected route is highlighted.</desc>
-          <defs><pattern id="floor-grid" width="22" height="22" patternUnits="userSpaceOnUse"><path d="M 22 0 L 0 0 0 22" fill="none" stroke="#e7edf1" strokeWidth="1" /></pattern><filter id="route-glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
-          <rect x="0" y="0" width="900" height="540" fill="#f5f8fa"/><rect x="0" y="0" width="900" height="540" fill="url(#floor-grid)"/>
-          <rect x="35" y="42" width="830" height="450" rx="18" fill="#fff" stroke="#cbd5df" strokeWidth="4"/>
-          <rect x="70" y="78" width="175" height="112" rx="7" className="map-room"/><text x="157" y="128" textAnchor="middle" className="map-room-label">LOBBY</text><text x="157" y="149" textAnchor="middle" className="map-room-sub">Reception / waiting</text>
-          <rect x="315" y="78" width="110" height="112" rx="7" className="map-room"/><text x="370" y="132" textAnchor="middle" className="map-room-label">OFFICE</text>
-          <rect x="480" y="78" width="115" height="112" rx="7" className="map-room"/><text x="537" y="132" textAnchor="middle" className="map-room-label">MEETING</text>
-          <rect x="675" y="345" width="150" height="105" rx="7" className="map-room"/><text x="750" y="395" textAnchor="middle" className="map-room-label">AMENITIES</text><text x="750" y="416" textAnchor="middle" className="map-room-sub">Common area</text>
-          <rect x="75" y="345" width="150" height="105" rx="7" className="map-room"/><text x="150" y="395" textAnchor="middle" className="map-room-label">SERVICE</text><text x="150" y="416" textAnchor="middle" className="map-room-sub">Facilities</text>
-          <path d="M245 195 V345 M315 195 V240 M425 195 V240 M480 195 V345 M595 195 V240 M675 195 V345" className="map-wall"/><path d="M245 345 H315 M425 345 H480 M595 345 H675 M245 195 H315 M425 195 H480 M595 195 H675" className="map-wall"/>
-          <path d="M450 420 V270 M450 270 H760 M450 270 H100 M450 270 V95 M450 270 H650 V95 H760" className="map-corridor"/>
-          <path d="M450 420 V270 M450 270 H760 M450 270 H100 M450 270 V95 M450 270 H650 V95 H760" className="map-route-guide"/>
-                    <path d={routePath} className={`map-active-route ${wheelchairMode ? 'accessible-route' : ''}`} style={{ stroke: routeColor }} filter="url(#route-glow)" />
-          {wheelchairMode && <g className="accessible-route-markers" aria-label="Step-free route markers"><path d="M450 332 L442 346 L458 346 Z M450 203 L442 217 L458 217 Z" fill="#fff" stroke="#267a9c" strokeWidth="2"/><circle cx="450" cy="355" r="12"/><text x="450" y="359" textAnchor="middle">1</text><circle cx="450" cy="235" r="12"/><text x="450" y="239" textAnchor="middle">2</text><rect x="482" y="287" width="112" height="25" rx="12"/><text x="538" y="304" textAnchor="middle" className="accessible-route-label">STEP-FREE</text><rect x="482" y="76" width="94" height="22" rx="11"/><text x="529" y="91" textAnchor="middle" className="accessible-route-label">LIFT ACCESS</text></g>}
-          <circle cx="450" cy="420" r="18" className="you-pulse"/><circle cx="450" cy="420" r="8" className="you-dot"/><text x="450" y="462" textAnchor="middle" className="map-you-label">YOU ARE HERE</text>
-          <circle cx="450" cy="270" r="9" className="map-junction"/><text x="450" y="249" textAnchor="middle" className="map-small-label">CENTRAL JUNCTION</text>
-          <g className={selectedExit === 'main' ? 'exit-node selected-exit' : mainExitBlocked ? 'exit-node blocked-exit' : 'exit-node'}><circle cx="760" cy="270" r="17"/><text x="760" y="276" textAnchor="middle" className="exit-symbol">{mainExitBlocked ? 'X' : 'A'}</text><text x="760" y="310" textAnchor="middle" className="map-exit-label">STAIRWELL A</text>{mainExitBlocked && <text x="760" y="330" textAnchor="middle" className="map-blocked-label">BLOCKED</text>}</g>
-          <g className={selectedExit === 'secondary' ? 'exit-node selected-exit' : 'exit-node'}><circle cx="100" cy="270" r="17"/><text x="100" y="276" textAnchor="middle" className="exit-symbol">B</text><text x="100" y="310" textAnchor="middle" className="map-exit-label">STAIRWELL B</text></g>
-          <g className={selectedExit === 'accessible' ? 'exit-node selected-exit accessible-exit' : 'exit-node accessible-exit'}><circle cx="450" cy="95" r="17"/><text x="450" y="101" textAnchor="middle" className="exit-symbol">L</text><text x="450" y="68" textAnchor="middle" className="map-exit-label">EVACUATION LIFT A</text></g>
-          <g className={selectedExit === 'cargo' ? 'exit-node selected-exit accessible-exit' : 'exit-node accessible-exit'}><circle cx="760" cy="95" r="17"/><text x="760" y="101" textAnchor="middle" className="exit-symbol">L</text><text x="760" y="68" textAnchor="middle" className="map-exit-label">CARGO LIFT</text></g>
-          <g transform="translate(820 70)"><path d="M0 27 L12 0 L24 27 Z" fill="#47627b"/><text x="12" y="44" textAnchor="middle" className="map-small-label">N</text></g>
-        </svg></div>
-        <div className="map-legend"><span><i className="legend-route" /> Suggested route</span><span><i className="legend-hall" /> Walkable corridor</span><span><i className="legend-exit" /> Exit / refuge point</span><span><i className="legend-blocked" /> Blocked</span></div>
+  const handleLocate = () => {
+    if (!navigator.geolocation) { setGpsMessage('Location is not supported by this browser.'); return; }
+    setGpsMessage('Requesting your location…');
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      setUserPos({ x: 450, y: 420, label: `GPS located · ${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)} · entry point` });
+      setGpsTracking(true); setGpsMessage('GPS located. Confirm your level and corridor on the model.');
+    }, () => { setGpsTracking(false); setGpsMessage('Location unavailable. Choose a starting point or enter it manually.'); }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 });
+  };
+
+  // Dynamic Routing Solver
+  const routeCalculation = useMemo(() => {
+    let target = null;
+    let isDeadlock = false;
+
+    if (wheelchairMode) {
+      if (!stairABlocked) {
+        target = EXITS.accessible;
+      } else {
+        target = EXITS.cargo;
+      }
+    } else {
+      if (!stairABlocked) {
+        target = EXITS.main;
+      } else if (!stairBBlocked) {
+        target = EXITS.secondary;
+      } else {
+        target = {
+          id: 'refuge',
+          label: 'Emergency Safe Refuge Bay',
+          sublabel: 'Conference Suite 103 (Positive Air Pressure)',
+          type: 'Shelter-in-Place',
+          clearance: 'Sealed Fire Barrier',
+          x: NODES.refuge_bay.x,
+          y: NODES.refuge_bay.y,
+        };
+        isDeadlock = true;
+      }
+    }
+
+    let pathD = `M ${userPos.x} ${userPos.y}`;
+
+    if (userPos.y > NODES.junc_central.y) {
+      pathD += ` L ${userPos.x} ${NODES.junc_central.y}`;
+    }
+
+    if (userPos.x !== NODES.junc_central.x && userPos.y !== NODES.junc_central.y) {
+      pathD += ` L ${NODES.junc_central.x} ${NODES.junc_central.y}`;
+    }
+
+    if (target.id === 'main' || target.id === 'secondary') {
+      pathD += ` L ${NODES.junc_central.x} ${NODES.junc_central.y} L ${target.x} ${target.y}`;
+    } else if (target.id === 'accessible') {
+      pathD += ` L ${target.x} ${NODES.junc_central.y} L ${target.x} ${target.y}`;
+    } else if (target.id === 'cargo') {
+      pathD += ` L ${NODES.junc_central.x} ${NODES.junc_central.y} L ${NODES.junc_east_aux.x} ${NODES.junc_east_aux.y} L ${NODES.junc_cargo_turn.x} ${NODES.junc_cargo_turn.y} L ${target.x} ${target.y}`;
+    } else if (isDeadlock) {
+      pathD += ` L ${NODES.junc_central.x} ${NODES.junc_central.y} L ${target.x} ${target.y}`;
+    }
+
+    const deltaX = Math.abs(userPos.x - target.x);
+    const deltaY = Math.abs(userPos.y - target.y);
+    const interFloorMeters = isDeadlock ? 0 : Math.max(0, selectedFloor - 1) * (wheelchairMode ? 22 : 28);
+    const distanceMeters = Math.max(18, Math.round((deltaX + deltaY) / 9.5 + interFloorMeters));
+    const estSeconds = Math.round(distanceMeters * (wheelchairMode ? 1.3 : 1.18));
+
+    return { target, isDeadlock, pathD, distanceMeters, estSeconds };
+  }, [userPos, stairABlocked, stairBBlocked, wheelchairMode, selectedFloor]);
+
+  const { target, isDeadlock, pathD, distanceMeters, estSeconds } = routeCalculation;
+
+  const routeColor = isDeadlock
+    ? '#dc2626'
+    : stairABlocked || stairBBlocked
+    ? '#ea580c'
+    : wheelchairMode
+    ? '#0284c7'
+    : '#10b981';
+
+  return (
+    <div className="evac-viewport">
+      <header className="evac-glass-header">
+        <div>
+          <div className="evac-kicker-row">
+            <span className="evac-kicker-brand">ARC-SHIELD OS</span>
+            <span className="evac-kicker-dot">•</span>
+            <span className="evac-kicker-sub">SPATIAL LIFE-SAFETY WAYFINDING</span>
+          </div>
+          <h1 className="evac-hero-title">Adaptive Evacuation Vector Planner</h1>
+          <p className="evac-hero-desc">
+            Autonomous egress computing engine. Click anywhere on walkable corridors to calibrate occupant beacon coordinates.
+          </p>
+        </div>
+
+        <div className="evac-header-widgets">
+          <div className="evac-live-chip">
+            <span className="evac-pulse-dot" />
+            DIJKSTRA VECTOR SOLVER ACTIVE
+          </div>
+          <div className={`gps-indicator-capsule ${gpsTracking ? 'is-tracking' : ''}`}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 2v3m0 14v3M2 12h3m14 0h3" />
+              <circle cx="12" cy="12" r="8" />
+            </svg>
+            <span>{userPos.label}</span>
+          </div>
+          <button type="button" className="btn-origin-chip" onClick={handleLocate}>Use my location</button>
+          {gpsMessage && <span className="gps-feedback" role="status">{gpsMessage}</span>}
+        </div>
+      </header>
+
+      {/* Simulation Scenario Controls */}
+      <section className="simulation-glass-deck">
+        <div className="simulation-deck-text">
+          <div className="deck-headline">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
+              <polygon points="12 2 2 7 12 12 22 7 12 2" />
+              <polyline points="2 17 12 22 22 17" />
+              <polyline points="2 12 12 17 22 12" />
+            </svg>
+            <strong>Interactive Threat &amp; Mobility Injections</strong>
+          </div>
+          <span className="deck-sub-note">Toggle multiple structural failures to test automated fallback rerouting.</span>
+        </div>
+
+        <div className="simulation-switches-group">
+          <label className={`ios-scenario-pill ${stairABlocked ? 'is-hazard-active' : ''}`}>
+            <input
+              type="checkbox"
+              className="native-checkbox"
+              checked={stairABlocked}
+              onChange={(e) => setStairABlocked(e.target.checked)}
+            />
+            <div className="ios-pill-switch">
+              <span className="pill-knob" />
+            </div>
+            <div className="pill-text-cluster">
+              <span className="pill-main-label">Block East Stairwell A</span>
+              <span className="pill-sub-label">Simulate smoke / debris</span>
+            </div>
+          </label>
+
+          <label className={`ios-scenario-pill ${stairBBlocked ? 'is-hazard-active' : ''}`}>
+            <input
+              type="checkbox"
+              className="native-checkbox"
+              checked={stairBBlocked}
+              onChange={(e) => setStairBBlocked(e.target.checked)}
+            />
+            <div className="ios-pill-switch">
+              <span className="pill-knob" />
+            </div>
+            <div className="pill-text-cluster">
+              <span className="pill-main-label">Block West Stairwell B</span>
+              <span className="pill-sub-label">Simulate exit failure</span>
+            </div>
+          </label>
+
+          <label className={`ios-scenario-pill ${wheelchairMode ? 'is-access-active' : ''}`}>
+            <input
+              type="checkbox"
+              className="native-checkbox"
+              checked={wheelchairMode}
+              onChange={(e) => setWheelchairMode(e.target.checked)}
+            />
+            <div className="ios-pill-switch">
+              <span className="pill-knob" />
+            </div>
+            <div className="pill-text-cluster">
+              <span className="pill-main-label">Step-Free Mobility Mode</span>
+              <span className="pill-sub-label">EN81-76 Pressurized Lifts</span>
+            </div>
+          </label>
+        </div>
       </section>
-      <aside className="route-summary"><div className="route-summary-head"><span className="route-kicker">RECOMMENDED ROUTE</span><span className="route-status-dot" style={{ background: routeColor }} /></div><h2>{exit.label}</h2><p className="route-destination">{exit.sublabel}</p><div className="route-status-box" style={{ borderColor: routeColor }}><strong>{mainExitBlocked ? 'Rerouted around blocked exit' : wheelchairMode ? 'Step-free route selected' : 'Clear route available'}</strong><span>{mainExitBlocked ? 'Stairwell A is excluded from this path.' : 'Follow the highlighted corridor to the selected exit.'}</span></div><div className="route-steps"><h3>Route instructions</h3>{instructions.map((step, index) => <div className="route-step" key={step}><span>{index + 1}</span><p>{step}</p></div>)}</div><div className="route-distance"><span>Route length</span><strong>{selectedExit === 'main' ? 'Approx. 42 m' : selectedExit === 'secondary' ? 'Approx. 58 m' : selectedExit === 'accessible' ? 'Approx. 36 m' : 'Approx. 61 m'}</strong></div><p className="route-demo-note">Demonstration map only. Confirm routes and conditions with on-site signage and emergency personnel.</p></aside>
-    </div>
-  </div>;
-}
 
+      {/* Preset Spawns */}
+      <div className="origin-presets-strip">
+        <span className="presets-label">Spawn Occupant Beacon:</span>
+        <div className="presets-buttons">
+          {PRESET_SPAWNS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className={`btn-origin-chip ${userPos.label === p.label ? 'is-active' : ''}`}
+              onClick={() => setUserPos(p)}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="evac-workspace-grid">
+        <section className="floorplan-glass-card">
+          <div className="floorplan-header-bar">
+            <div className="floor-badge-cluster">
+                <span className="level-pill">LEVEL {String(selectedFloor).padStart(2, '0')}</span>
+              <div>
+                <h3 className="floor-plan-title">{detailFloor ? `Level ${String(detailFloor).padStart(2, '0')} · Route detail` : 'Continuous 3D evacuation route'}</h3>
+                <span className="floor-plan-sub">{selectedFloor > 1 ? `LEVEL ${String(selectedFloor).padStart(2, '0')} → ${target?.id === 'secondary' ? 'STAIR B' : target?.id === 'accessible' || target?.id === 'cargo' ? 'EVACUATION LIFT' : 'STAIR A'} → LEVEL 01 → ASSEMBLY` : 'GROUND LEVEL ROUTE → ASSEMBLY'}</span>
+              </div>
+            </div>
+            <div className="route-state-chip" style={{ borderColor: routeColor, color: routeColor }}>
+              <span className="route-state-pip" style={{ background: routeColor }} />
+              {isDeadlock ? 'SHELTER IN REFUGE' : stairABlocked || stairBBlocked ? 'REROUTED ESCAPE VECTOR' : 'OPTIMAL ESCAPE CLEAR'}
+            </div>
+          </div>
+
+          <div className="map-view-toolbar">
+            <div className="map-view-switch" role="group" aria-label="Route view">
+              <button type="button" className={!detailFloor ? 'is-active' : ''} onClick={() => setDetailFloor(null)}>Full route</button>
+            </div>
+            <div className="floor-selector" role="group" aria-label="Starting floor">
+              {[3, 2, 1].map((floor) => <button key={floor} type="button" className={selectedFloor === floor ? 'is-active' : ''} onClick={() => { setSelectedFloor(floor); setDetailFloor(floor); }}>Level {String(floor).padStart(2, '0')}</button>)}
+            </div>
+            <div className="orbit-controls"><span className="orbit-instruction">Drag to orbit · scroll to zoom · click a floor to inspect</span></div>
+          </div>
+
+          <EvacuationScene userPos={userPos} target={target} routeColor={routeColor} activeHazards={activeHazards} selectedFloor={selectedFloor} detailFloor={detailFloor} onSelectFloor={(floor) => { setSelectedFloor(floor); setDetailFloor(floor); }} />
+
+          <div className="floorplan-legend-row">
+            <div className="legend-item">
+              <span className="legend-dot" style={{ background: routeColor }} />
+              <span>Dynamic Vector</span>
+            </div>
+            <div className="legend-item">
+              <span className="legend-dot bg-hall" />
+              <span>Fire Corridor</span>
+            </div>
+            <div className="legend-item">
+              <span className="legend-dot bg-stair" />
+              <span>Fire Stairwell / Refuge Bay</span>
+            </div>
+            <div className="legend-item">
+              <span className="legend-dot bg-hazard" />
+              <span>Structural Barrier</span>
+            </div>
+          </div>
+        </section>
+
+        <aside className="dossier-glass-panel">
+          <div className="dossier-header-block">
+            <span className="dossier-eyebrow">DIJKSTRA COMPUTED WAYFINDING DOSSIER</span>
+            <div className="dossier-exit-name-row">
+              <h2 className="dossier-exit-title">{target.label}</h2>
+              <span className={`dossier-type-badge ${isDeadlock ? 'badge-deadlock' : ''}`}>{target.type}</span>
+            </div>
+            <p className="dossier-sublabel">{target.sublabel}</p>
+          </div>
+
+          <div className="dossier-telemetry-shelf">
+            <div className="shelf-metric-item">
+              <span className="shelf-val">{distanceMeters} m</span>
+              <span className="shelf-label">Distance</span>
+            </div>
+            <div className="shelf-metric-item">
+              <span className="shelf-val">~{estSeconds} sec</span>
+              <span className="shelf-label">Est. Clearance</span>
+            </div>
+            <div className="shelf-metric-item">
+              <span className="shelf-val">{target.clearance}</span>
+              <span className="shelf-label">Specification</span>
+            </div>
+          </div>
+
+          <div className={`advisory-status-capsule ${isDeadlock ? 'is-deadlock' : stairABlocked || stairBBlocked ? 'is-rerouted' : ''}`}>
+            <div className="advisory-icon-wrapper">
+              {isDeadlock ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+              ) : stairABlocked || stairBBlocked ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
+            </div>
+            <div>
+              <strong className="advisory-title">
+                {isDeadlock
+                  ? 'All Primary Egress Blocked • Shelter in Place'
+                  : stairABlocked || stairBBlocked
+                  ? 'Dynamic Reroute Active'
+                  : wheelchairMode
+                  ? 'Step-Free Vector Active'
+                  : 'Primary Egress Vector Nominal'}
+              </strong>
+              <p className="advisory-copy">
+                {isDeadlock
+                  ? 'Both East and West Stairwells are impassable. Proceed immediately to Conference Suite 103, seal doors, and await tactical rescue units.'
+                  : stairABlocked
+                  ? 'Stairwell A excluded from routing matrix. Occupants diverted to West Stairwell B.'
+                  : wheelchairMode
+                  ? 'Navigating to EN81-76 Pressurized Elevator Shaft with dedicated standby emergency power.'
+                  : 'Corridors nominal. Follow illuminated green wayfinding indicators toward primary fire doors.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="steps-hierarchy-block">
+            <span className="steps-heading">SEQUENTIAL WAYFINDING STEPS</span>
+            <div className="steps-vertical-flow">
+              <div className="step-card-ios">
+                <div className="step-number-bubble">01</div>
+                <div className="step-info">
+                  <span className="step-lead-text">Origin: {userPos.label}</span>
+                    <p className="step-body-copy">{selectedFloor > 1 ? `Follow the marked corridor to ${wheelchairMode ? 'the evacuation lift' : `Stairwell ${target.id === 'secondary' ? 'B' : 'A'}`} on Level ${selectedFloor}.` : 'Advance toward the nearest signed exit route and keep the corridor clear.'}</p>
+                </div>
+              </div>
+              <div className="step-card-ios">
+                <div className="step-number-bubble">02</div>
+                <div className="step-info">
+                  <span className="step-lead-text">Central Junction 01</span>
+                  <p className="step-body-copy">
+                    {isDeadlock
+                      ? 'Turn right into sealed Conference Suite 103 refuge bay.'
+                      : target.id === 'secondary'
+                      ? `Use the west corridor to reach Stairwell B${selectedFloor > 1 ? `, then descend to Level 01` : ''}.`
+                      : target.id === 'accessible' || target.id === 'cargo'
+                      ? `Enter the protected evacuation lift and travel down to Level 01.`
+                      : `Use the east corridor to reach Stairwell A${selectedFloor > 1 ? `, then descend to Level 01` : ''}.`}
+                  </p>
+                </div>
+              </div>
+              <div className="step-card-ios">
+                <div className="step-number-bubble">03</div>
+                <div className="step-info">
+                  <span className="step-lead-text">{target.label}</span>
+                  <p className="step-body-copy">
+                    {isDeadlock
+                      ? 'Engage door seals and activate emergency intercom.'
+                      : selectedFloor > 1
+                      ? 'At Level 01, follow the ground-level exit signs to the designated outdoor assembly area. Do not use passenger lifts.'
+                      : 'Follow the ground-level exit signs to the designated outdoor assembly area.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="dossier-footer-note">
+            <p>
+              Autonomous spatial telemetry. In active fire conditions, comply with emergency floor wardens and primary audible alert horns.
+            </p>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
