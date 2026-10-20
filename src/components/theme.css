@@ -42,6 +42,43 @@
   --as-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
+/* A quiet cyan light wash gives the dark page headers a little life without
+   competing with the title, photo, or status cards. */
+.as-hero__scrim,
+.as-page-hero__scrim {
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.as-hero__scrim::after,
+.as-page-hero__scrim::after {
+  position: absolute;
+  z-index: 0;
+  inset: -24% -18%;
+  content: '';
+  pointer-events: none;
+  opacity: 0.44;
+  background:
+    radial-gradient(ellipse at 24% 52%, rgba(56, 189, 248, 0.24), transparent 38%),
+    radial-gradient(ellipse at 76% 42%, rgba(14, 116, 144, 0.16), transparent 42%);
+  background-size: 145% 145%;
+  background-position: 0% 50%;
+  animation: as-ambient-drift 28s ease-in-out infinite alternate;
+}
+
+@keyframes as-ambient-drift {
+  from { background-position: 0% 48%; opacity: 0.34; }
+  to { background-position: 100% 52%; opacity: 0.54; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .as-hero__scrim::after,
+  .as-page-hero__scrim::after {
+    animation: none;
+    opacity: 0.4;
+  }
+}
+
 @media (max-width: 640px) {
   :root {
     --as-page-gutter: 1rem;
