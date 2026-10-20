@@ -3,6 +3,7 @@ from pathlib import Path
 import joblib
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+from fastapi.middleware.cors import CORSMiddleware
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -13,6 +14,17 @@ app = FastAPI(
     title="ARC-Shield NLP Service",
     description="API for classifying reported property hazards.",
     version="0.2.0",
+)
+
+# Permits local React app to make API requests to Render
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
 model = None
