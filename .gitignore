@@ -17,6 +17,7 @@ npm-debug.log*
 .venv/
 venv/
 env/
+nlp-service/.venv312/
 
 # Python bytecode and cache
 __pycache__/
