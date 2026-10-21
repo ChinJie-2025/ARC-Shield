@@ -4,12 +4,20 @@ import './LoginModal.css';
 
 const PRESET_ACCOUNTS = [
   {
-    role: 'Resident',
-    name: 'Resident User',
+    role: 'Resident/Visitor',
+    name: 'Resident/Visitor User',
     id: 'RES-1001',
     access: 'Report hazards & view safety tools',
     avatar: 'RU',
     pin: '1234',
+  },
+  {
+    role: 'Staff',
+    name: 'Facilities Duty Officer',
+    id: 'STAFF-0042',
+    access: 'Claim incidents, dispatch teams & log interventions',
+    avatar: 'FO',
+    pin: '4321',
   },
   {
     role: 'Executive',
@@ -101,7 +109,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
             </span>
             <span className="as-login__brand-text">
               <strong>ARC-SHIELD</strong>
-              <span>Resident &amp; executive access</span>
+              <span>Resident/visitor, staff &amp; executive access</span>
             </span>
           </div>
           <button type="button" className="as-login__close" onClick={onClose} aria-label="Close sign in">
@@ -116,7 +124,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
           <div>
             <h2 id="login-title" className="as-login__title">Choose your dashboard</h2>
             <p className="as-login__lead">
-              Residents can report hazards and view safety tools. Executives can review reports and response operations.
+              Residents and visitors can report hazards. Staff manage response within the risk SLAs; executives oversee cases escalated after a deadline.
             </p>
           </div>
 

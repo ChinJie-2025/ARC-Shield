@@ -8,7 +8,7 @@ const CAPABILITIES = [
   'Predictive flood surge defense',
 ];
 
-export default function HomeHero({ onExplore, onReportIncident, activeIncidentCount = 0, residentView = false }) {
+export default function HomeHero({ onExplore, onReportIncident, activeIncidentCount = 0, residentView = false, residentLabel = 'Resident/Visitor' }) {
   const hasHazards = activeIncidentCount > 0;
 
   return (
@@ -33,7 +33,7 @@ export default function HomeHero({ onExplore, onReportIncident, activeIncidentCo
 
           <p className="as-hero__lead">
             {residentView
-              ? 'View your facility status, find a clear route across every level, and report hazards that need attention.'
+              ? `As a ${residentLabel}, view facility status, find a clear route across every level, and report hazards that need attention.`
               : 'Real-time multi-sensor telemetry, dynamic floor egress rerouting, and predictive hydrological surge defense deployed across corporate asset portfolios.'}
           </p>
 
