@@ -24,16 +24,60 @@
 }
 
 body {
+  position: relative;
+  isolation: isolate;
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  /* Ambient iOS Light Mesh Background */
-  background: 
-    radial-gradient(at 0% 0%, rgba(224, 242, 254, 0.65) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(243, 232, 255, 0.45) 0px, transparent 50%),
-    radial-gradient(at 50% 100%, rgba(241, 245, 249, 0.9) 0px, transparent 50%),
-    #f8fafc;
+  background: #f8fafc;
   background-attachment: fixed;
+}
+
+/* Slow ambient color movement behind every section of the app. */
+body::before,
+body::after {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+}
+
+body::before {
+  inset: -18%;
+  background:
+    radial-gradient(ellipse at 16% 22%, rgba(56, 189, 248, 0.2), transparent 34%),
+    radial-gradient(ellipse at 82% 26%, rgba(129, 140, 248, 0.14), transparent 32%),
+    radial-gradient(ellipse at 55% 86%, rgba(45, 212, 191, 0.13), transparent 36%);
+  filter: blur(22px);
+  animation: page-ambient-drift 26s ease-in-out infinite alternate;
+}
+
+body::after {
+  background-image:
+    linear-gradient(rgba(15, 39, 68, 0.026) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 39, 68, 0.026) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: radial-gradient(ellipse at center, #000 8%, transparent 78%);
+  opacity: 0.42;
+  animation: page-grid-drift 48s linear infinite;
+}
+
+@keyframes page-ambient-drift {
+  from { transform: translate3d(-2.5%, -1.5%, 0) scale(0.98); }
+  to { transform: translate3d(2.5%, 2%, 0) scale(1.05); }
+}
+
+@keyframes page-grid-drift {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 52px 26px, 26px 52px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  body::after {
+    animation: none;
+  }
 }
 
 button, input, textarea, select {
