@@ -17,7 +17,7 @@ export default function Navigation({ activeTab, onSelectTab, currentUser, onOpen
         <button
           type="button"
           className="as-nav__brand"
-          onClick={() => onSelectTab(currentUser?.role === 'Executive' ? 'dashboard' : 'report')}
+          onClick={() => onSelectTab(['Executive', 'Staff'].includes(currentUser?.role) ? 'dashboard' : 'report')}
           aria-label="ARC-SHIELD, go to dashboard"
         >
           <span className="as-nav__logo" aria-hidden="true">
@@ -31,7 +31,7 @@ export default function Navigation({ activeTab, onSelectTab, currentUser, onOpen
 
         {/* Primary links */}
         <nav className="as-nav__links" aria-label="Main navigation">
-          {TABS.filter((tab) => currentUser?.role === 'Executive' ? tab.id !== 'report' : tab.id !== 'dashboard').map((tab) => {
+          {TABS.filter((tab) => ['Executive', 'Staff'].includes(currentUser?.role) ? tab.id !== 'report' : tab.id !== 'dashboard').map((tab) => {
             const isActive = activeTab === tab.id;
             return (
               <button
@@ -44,7 +44,7 @@ export default function Navigation({ activeTab, onSelectTab, currentUser, onOpen
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d={tab.icon} />
                 </svg>
-                <span>{tab.id === 'dashboard' ? 'Incident Dashboard' : tab.id === 'report' ? 'Submit a Report' : tab.id === 'map' ? 'Evacuation Route' : tab.label}</span>
+                <span>{tab.id === 'dashboard' ? (currentUser?.role === 'Executive' ? 'Executive Dashboard' : 'Staff Dashboard') : tab.id === 'report' ? 'Report as Resident/Visitor' : tab.id === 'map' ? 'Evacuation Route' : tab.label}</span>
               </button>
             );
           })}
