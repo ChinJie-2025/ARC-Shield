@@ -96,6 +96,8 @@ Example configuration:
 ```dotenv
 GEMINI_API_KEY=your_key_here
 GEMINI_MODEL=gemini-3.8-flash
+GEMINI_FALLBACK_MODEL=gemini-3.6-flash
+GEMINI_TIMEOUT_MS=45000
 API_PORT=3002
 DATABASE_URL=
 APP_ORIGINS=http://localhost:5173,https://arc-shield-1.onrender.com
