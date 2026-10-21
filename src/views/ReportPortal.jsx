@@ -190,6 +190,15 @@ export default function ReportPortal({ onSubmit = () => {} }) {
       time: Date.now(),
       image: preview,
       reporter: 'Resident',
+
+      // Preserve the Python NLP result with the incident.
+      nlpResult: nlpResult
+        ? {
+            predicted_category: nlpResult.predicted_category,
+            confidence: nlpResult.confidence,
+            model_version: nlpResult.model_version || 'Unknown',
+          }
+        : null,
     };
 
     try {
@@ -567,46 +576,69 @@ export default function ReportPortal({ onSubmit = () => {} }) {
                       </p>
                     </div>
                   </div>
+
+                  <button
+                    type="button"
+                    className="gemini-review-button"
+                    onClick={requestNlpClassification}
+                    disabled={!hasDescription || isNlpLoading}
+                    aria-busy={isNlpLoading}
+                  >
+                    {isNlpLoading ? (
+                      <>
+                        <span
+                          className="gemini-review-spinner"
+                          aria-hidden="true"
+                        />
+                        Classifying
+                      </>
+                    ) : (
+                      <>
+                        <span>Classify hazard</span>
+                        <svg
+                          viewBox="0 0 20 20"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M4 10h11m-4-4 4 4-4 4" />
+                        </svg>
+                      </>
+                    )}
+                  </button>
                 </div>
 
-              <button
-                type="button"
-                className="gemini-review-button"
-                onClick={requestNlpClassification}
-                disabled={!hasDescription || isNlpLoading}
-                aria-busy={isNlpLoading}
-              >
-                {isNlpLoading ? 'Classifying...' : 'Classify hazard'}
-              </button>
+                {nlpError && (
+                  <p className="gemini-review-error" role="alert">
+                    {nlpError}
+                  </p>
+                )}
 
-              {nlpError && (
-                <p className="gemini-review-error" role="alert">
-                  {nlpError}
-                </p>
-              )}
-
-              {nlpResult && (
-                <div className="gemini-review-result" aria-live="polite">
-                  <p>
-                    <strong>Predicted category:</strong>{' '}
-                    {nlpResult.predicted_category.replace(/_/g, ' ')}
-                  </p>
-                  <p>
-                    <strong>Model confidence:</strong>{' '}
-                    {(nlpResult.confidence * 100).toFixed(1)}%
-                  </p>
-                  <p>
-                    <strong>Model version:</strong>{' '}
-                    {nlpResult.model_version || 'Unknown'}
-                  </p>
-                  <small>
-                    This is a model prediction, not a confirmed diagnosis of the hazard.
-                    Staff must review the report. Do not delay emergency action while
-                    waiting for classification.
-                  </small>
-                </div>
-              )}
-            </section>
+                {nlpResult && (
+                  <div className="gemini-review-result" aria-live="polite">
+                    <p>
+                      <strong>Predicted category:</strong>{' '}
+                      {nlpResult.predicted_category.replace(/_/g, ' ')}
+                    </p>
+                    <p>
+                      <strong>Model confidence:</strong>{' '}
+                      {(nlpResult.confidence * 100).toFixed(1)}%
+                    </p>
+                    <p>
+                      <strong>Model version:</strong>{' '}
+                      {nlpResult.model_version || 'Unknown'}
+                    </p>
+                    <small>
+                      This is a model prediction, not a confirmed diagnosis of the hazard.
+                      Staff must review the report. Do not delay emergency action while
+                      waiting for classification.
+                    </small>
+                  </div>
+                )}
+              </section>
             </div>
 
             <div className="portal-actions-row">
