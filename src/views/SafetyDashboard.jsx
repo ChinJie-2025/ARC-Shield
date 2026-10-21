@@ -66,6 +66,52 @@ function IncidentCard({ incident, onClaim, onRespond, onVerify, now, variant = '
           <span>{incident.location}</span>
         </p>
 
+        {/* Python NLP classification — informational only */}
+        <section
+          className="nlp-classification-card"
+          aria-label="Python NLP hazard classification"
+        >
+          <div className="nlp-classification-card__header">
+            <span className="nlp-classification-card__label">
+              PYTHON NLP CLASSIFICATION
+            </span>
+            <span className="nlp-classification-card__status">
+              {incident.nlpResult ? 'Prediction available' : 'Not classified'}
+            </span>
+          </div>
+
+          {incident.nlpResult ? (
+            <>
+              <p>
+                <strong>Predicted category:</strong>{' '}
+                {(incident.nlpResult.predicted_category || 'Unknown')
+                  .replace(/_/g, ' ')}
+              </p>
+
+              <p>
+                <strong>Model confidence:</strong>{' '}
+                {Number.isFinite(incident.nlpResult.confidence)
+                  ? `${(incident.nlpResult.confidence * 100).toFixed(1)}%`
+                  : 'Unavailable'}
+              </p>
+
+              <p>
+                <strong>Model version:</strong>{' '}
+                {incident.nlpResult.model_version || 'Unknown'}
+              </p>
+            </>
+          ) : (
+            <p className="nlp-classification-card__empty">
+              No NLP prediction was saved for this incident.
+            </p>
+          )}
+
+          <small>
+            Informational prediction only. Follow operational risk protocols
+            and never delay emergency action while awaiting classification.
+          </small>
+        </section>
+
         {incident.image && (
           <div className="card-media-shell">
             <img className="card-media-img" src={incident.image} alt="Field evidence" />
