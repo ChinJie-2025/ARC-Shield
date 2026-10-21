@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { classifyIncident } from '../data/incidentTriage';
+import { apiUrl } from '../lib/api';
 import './ReportPortal.css';
 
 export default function ReportPortal({ onSubmit = () => {} }) {
@@ -36,7 +37,7 @@ export default function ReportPortal({ onSubmit = () => {} }) {
     setGeminiError('');
     setGeminiAssessment(null);
     try {
-      const response = await fetch('/api/triage', {
+      const response = await fetch(apiUrl('/api/triage'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ description: description.trim(), location: location.trim() }),

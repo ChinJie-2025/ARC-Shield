@@ -8,6 +8,7 @@ import ReportPortal from './views/ReportPortal';
 import EvacuationMap from './views/EvacuationMap';
 import FloodResilience from './views/FloodResilience';
 import { initialIncidents } from './data/mockData';
+import { apiUrl } from './lib/api';
 
 export default function App() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -50,7 +51,7 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
-    fetch('/api/incidents')
+    fetch(apiUrl('/api/incidents'))
       .then((response) => {
         if (!response.ok) throw new Error('Incident service unavailable');
         return response.json();
@@ -60,7 +61,7 @@ export default function App() {
         if (data.incidents.length > 0) {
           setIncidents(data.incidents);
         } else {
-          fetch('/api/incidents', {
+          fetch(apiUrl('/api/incidents'), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ incidents }),
@@ -76,7 +77,7 @@ export default function App() {
     try {
       localStorage.setItem('arc_shield_incidents', JSON.stringify(incidents));
       if (apiStatus === 'connected') {
-        fetch('/api/incidents', {
+        fetch(apiUrl('/api/incidents'), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ incidents }),
@@ -102,7 +103,7 @@ export default function App() {
     const nextIncidents = [reportWithReporter, ...incidents];
     setIncidents(nextIncidents);
     const signature = JSON.stringify(nextIncidents.map(({ id, desc, location, risk, reporter }) => ({ id, desc, location, risk, reporter })));
-    fetch('/api/tier-summary', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ incidents: nextIncidents }) })
+    fetch(apiUrl('/api/tier-summary'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ incidents: nextIncidents }) })
       .then(async (response) => { const data = await response.json(); if (!response.ok) throw new Error(data.error); setTierSummary({ ...data, signature }); })
       .catch(() => setTierSummary({ error: 'Summary unavailable', signature }));
     setActiveTab('map');

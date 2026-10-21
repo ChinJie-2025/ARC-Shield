@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { apiUrl } from '../lib/api';
 
 export default function TierSummaryPanel({ incidents, tierSummary, onTierSummaryChange }) {
   const [summary, setSummary] = useState(null);
@@ -15,7 +16,7 @@ export default function TierSummaryPanel({ incidents, tierSummary, onTierSummary
       return () => controller.abort();
     }
     setLoading(true); setError('');
-    fetch('/api/tier-summary', {
+    fetch(apiUrl('/api/tier-summary'), {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ incidents: reports }), signal: controller.signal,
     }).then(async (response) => {

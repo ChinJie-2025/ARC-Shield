@@ -12,6 +12,8 @@ Open the link in a browser. Visitors do not need to install Node.js, clone this 
 
 The Render deployment must have `GEMINI_API_KEY` configured in its environment variables for Gemini-powered report reviews and tier summaries. A local `.env` file is only used when running the project on a developer's computer; it is not uploaded to Render automatically.
 
+The frontend and API are separate Render services. Set `VITE_API_URL` on the frontend Static Site to the API Web Service's base URL (for example, `https://arc-shield-full.onrender.com`). Set `APP_ORIGINS` on the API Web Service to the exact frontend origin (for example, `https://arc-shield-1.onrender.com`). Rebuild/redeploy the frontend after changing `VITE_API_URL`; Vite embeds it during the build. The API service should run `npm run api` as its start command and provide `GEMINI_API_KEY` if Gemini features are needed.
+
 ## What it does
 
 ### Resident dashboard
@@ -136,6 +138,15 @@ npm run preview
 ```
 
 The preview serves the frontend only. A hosted deployment needs a separately deployed API and a configured API URL/proxy.
+
+### Render service configuration
+
+For a split frontend/API deployment:
+
+- **Frontend Static Site:** build command `npm install && npm run build`; publish directory `dist`; environment variable `VITE_API_URL` set to the API Web Service base URL, without a trailing slash.
+- **API Web Service:** start command `npm run api`; environment variables `APP_ORIGINS` set to the frontend origin and `GEMINI_API_KEY` set if Gemini is enabled. Render provides `PORT` automatically.
+
+The frontend uses same-origin `/api` requests when `VITE_API_URL` is unset, which is convenient for local development through Vite's proxy. When the API is hosted separately, `APP_ORIGINS` must match the browser-visible frontend origin exactly.
 
 ## Current limitations
 
