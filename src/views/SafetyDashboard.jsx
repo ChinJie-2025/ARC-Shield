@@ -317,7 +317,9 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
   );
 
   const visibleIncidents = role === 'Executive'
-    ? incidents.filter((item) => escalated.some((escalatedItem) => escalatedItem.id === item.id))
+    ? incidents.filter((item) => item.status === 'Resolved'
+      || item.executiveEscalatedAt
+      || (getProfile(item).escalateMinutes && now >= item.time + getProfile(item).escalateMinutes * 60000))
     : incidents;
 
   const highCriticalCount = useMemo(
@@ -366,7 +368,7 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
           <h1 className="header-primary-title">{role === 'Executive' ? 'Executive Escalation Oversight' : 'Staff Response Operations'}</h1>
           <p className="header-sub-copy">
             {role === 'Executive'
-              ? 'Cases appear here when the staff response or resolution deadline has passed. Review and take over escalated incidents.'
+            ? 'Review cases escalated after a staff SLA breach, and keep resolved tickets in the case history.'
               : 'Claim reports, dispatch the assigned teams, and record intervention or verified resolution before the risk SLA expires.'}
           </p>
         </div>
@@ -419,7 +421,7 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
             <span>{role === 'Executive' ? 'Escalated Cases' : 'Total Open Tickets'}</span>
             <span className="subtle-indicator bg-info" />
           </div>
-          <span className="subtle-number">{String(role === 'Executive' ? visibleIncidents.length : active.length).padStart(2, '0')}</span>
+          <span className="subtle-number">{String(role === 'Executive' ? escalated.length : active.length).padStart(2, '0')}</span>
           <span className="subtle-note">{role === 'Executive' ? 'Awaiting executive oversight' : 'Across all risk tiers'}</span>
         </div>
 
@@ -506,7 +508,7 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
       <section className="board-control-row">
         <div className="board-heading-block">
           <h2 className="board-primary-heading">
-            {role === 'Executive' ? 'Escalated Incident Queue' : viewMode === 'priority' ? 'Priority Urgency Matrix' : 'Pipeline Stage Workflow'}
+            {viewMode === 'priority' ? 'Priority Urgency Matrix' : 'Pipeline Stage Workflow'}
           </h2>
           <span className="board-total-count">{role === 'Executive' ? visibleIncidents.length : active.length} {role === 'Executive' ? 'escalated cases' : 'active tickets'}</span>
         </div>
