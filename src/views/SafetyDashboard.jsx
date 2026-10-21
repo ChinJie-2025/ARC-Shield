@@ -200,7 +200,7 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
 
   // ---- State (these were missing) ----
   const [now, setNow] = useState(() => Date.now());
-  const viewMode = 'pipeline';
+  const [viewMode, setViewMode] = useState('priority');
   const [verifyModal, setVerifyModal] = useState(null);
   const [evidenceMsg, setEvidenceMsg] = useState('');
   const [evidencePhoto, setEvidencePhoto] = useState('');
@@ -435,8 +435,8 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
         </div>
       </section>
 
-      <TierSummaryPanel incidents={incidents} tierSummary={tierSummary} onTierSummaryChange={onTierSummaryChange} />
-      <RepeatReportPanel incidents={incidents} />
+      {role !== 'Executive' && <TierSummaryPanel incidents={incidents} tierSummary={tierSummary} onTierSummaryChange={onTierSummaryChange} />}
+      {role !== 'Executive' && <RepeatReportPanel incidents={incidents} />}
       {role === 'Executive' && escalated.length === 0 && (
         <div className="empty-lane-callout">No incidents have breached their staff response or resolution SLA.</div>
       )}
@@ -508,15 +508,40 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
       <section className="board-control-row">
         <div className="board-heading-block">
           <h2 className="board-primary-heading">
-            {role === 'Executive' ? 'Executive Case Queue' : 'Incident Pipeline'}
+            {viewMode === 'priority' ? 'Priority Urgency Matrix' : 'Pipeline Stage Workflow'}
           </h2>
-          <span className="board-total-count">{role === 'Executive' ? `${escalated.length} escalated · ${resolvedList.length} resolved` : `${active.length} active tickets`}</span>
+          <span className="board-total-count">{role === 'Executive' ? visibleIncidents.length : active.length} {role === 'Executive' ? 'escalated cases' : 'active tickets'}</span>
         </div>
 
+        {role !== 'Executive' && <div className="view-mode-segmented">
+          <button
+            type="button"
+            className={`view-segment-btn ${viewMode === 'priority' ? 'is-active' : ''}`}
+            onClick={() => setViewMode('priority')}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+            </svg>
+            Priority Hierarchy View
+          </button>
+          <button
+            type="button"
+            className={`view-segment-btn ${viewMode === 'pipeline' ? 'is-active' : ''}`}
+            onClick={() => setViewMode('pipeline')}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+            </svg>
+            Pipeline Status View
+          </button>
+        </div>}
       </section>
 
       {/* VIEW 1: PRIORITY HIERARCHY MATRIX */}
-      {viewMode === 'priority' && (
+      {viewMode === 'priority' && role !== 'Executive' && (
         <div className="priority-hierarchy-container">
           {reviewTier.length > 0 && (
             <div className="hierarchy-lane lane-review">
@@ -638,7 +663,7 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
       )}
 
       {/* VIEW 2: PIPELINE STAGES */}
-      {viewMode === 'pipeline' && (
+      {(viewMode === 'pipeline' || role === 'Executive') && (
         <div className="pipeline-kanban-flow">
           {pipelineStages.map((status) => {
             const columnItems = visibleIncidents
