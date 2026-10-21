@@ -11,6 +11,11 @@ export default function ReportPortal({ onSubmit = () => {} }) {
   const [isGeminiLoading, setIsGeminiLoading] = useState(false);
   const [geminiAssessment, setGeminiAssessment] = useState(null);
   const [geminiError, setGeminiError] = useState('');
+  
+  // Python NLP classifier state
+  const [isNlpLoading, setIsNlpLoading] = useState(false);
+  const [nlpResult, setNlpResult] = useState(null);
+  const [nlpError, setNlpError] = useState('');
 
   // GPS Tracking States
   const [isLocating, setIsLocating] = useState(false);
@@ -47,6 +52,61 @@ export default function ReportPortal({ onSubmit = () => {} }) {
       setIsGeminiLoading(false);
     }
   };
+
+  const requestNlpClassification = async () => {
+  const reportText = description.trim();
+
+  if (!reportText || isNlpLoading) return;
+
+  setIsNlpLoading(true);
+  setNlpError('');
+  setNlpResult(null);
+
+  try {
+    const apiBaseUrl = import.meta.env.VITE_NLP_API_URL?.replace(/\/+$/, '');
+
+    if (!apiBaseUrl) {
+      throw new Error('The NLP API URL has not been configured.');
+    }
+
+    const response = await fetch(`${apiBaseUrl}/classify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        report_text: reportText,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        response.status === 503
+          ? 'The classifier is temporarily unavailable. Please try again.'
+          : `Classification failed (HTTP ${response.status}).`
+      );
+    }
+
+    const data = await response.json();
+
+    if (
+      typeof data.predicted_category !== 'string' ||
+      typeof data.confidence !== 'number'
+    ) {
+      throw new Error('The NLP API returned an unexpected response.');
+    }
+
+    setNlpResult(data);
+  } catch (error) {
+    setNlpError(
+      error instanceof TypeError
+        ? 'Unable to connect to the NLP service. It may be starting up; please try again.'
+        : error.message || 'Classification could not be completed.'
+    );
+  } finally {
+    setIsNlpLoading(false);
+  }
+};
 
   useEffect(() => {
     return () => {
@@ -130,6 +190,15 @@ export default function ReportPortal({ onSubmit = () => {} }) {
       time: Date.now(),
       image: preview,
       reporter: 'Resident',
+
+      // Preserve the Python NLP result with the incident.
+      nlpResult: nlpResult
+        ? {
+            predicted_category: nlpResult.predicted_category,
+            confidence: nlpResult.confidence,
+            model_version: nlpResult.model_version || 'Unknown',
+          }
+        : null,
     };
 
     try {
@@ -152,6 +221,8 @@ export default function ReportPortal({ onSubmit = () => {} }) {
     setLocation('');
     setGeoCoords(null);
     setGeoError('');
+    setNlpResult(null);
+    setNlpError('');
   };
 
   if (status === 'success') {
@@ -303,6 +374,8 @@ export default function ReportPortal({ onSubmit = () => {} }) {
                   setDescription(e.target.value);
                   setGeminiAssessment(null);
                   setGeminiError('');
+                  setNlpResult(null);
+                  setNlpError('');
                 }}
                 placeholder="Describe visible damage, fluid spills, blocked emergency exits, sparking electricals, or safety concerns..."
               />
@@ -463,6 +536,107 @@ export default function ReportPortal({ onSubmit = () => {} }) {
                       <span>{geminiAssessment.advisory}</span>
                     </div>
                   </section>
+                )}
+              </section>
+
+              {/* Python NLP hazard classifier */}
+              <section
+                className="gemini-review-panel"
+                aria-label="NLP hazard classification"
+              >
+                <div className="gemini-review-panel__header">
+                  <div className="gemini-review-panel__identity">
+                    <span
+                      className="gemini-review-panel__icon"
+                      aria-hidden="true"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M12 3 13.9 9.1 20 11l-6.1 1.9L12 19l-1.9-6.1L4 11l6.1-1.9L12 3Z" />
+                        <path d="M5 19h4m-2-2v4" />
+                      </svg>
+                    </span>
+
+                    <div className="gemini-review-panel__copy">
+                      <span className="gemini-review-panel__eyebrow">
+                        PYTHON NLP CLASSIFIER
+                      </span>
+
+                      <h3>Hazard category prediction</h3>
+
+                      <p>
+                        Predicts a hazard category from your description.
+                        This result is separate from response priority and team assignment.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="gemini-review-button"
+                    onClick={requestNlpClassification}
+                    disabled={!hasDescription || isNlpLoading}
+                    aria-busy={isNlpLoading}
+                  >
+                    {isNlpLoading ? (
+                      <>
+                        <span
+                          className="gemini-review-spinner"
+                          aria-hidden="true"
+                        />
+                        Classifying
+                      </>
+                    ) : (
+                      <>
+                        <span>Classify hazard</span>
+                        <svg
+                          viewBox="0 0 20 20"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M4 10h11m-4-4 4 4-4 4" />
+                        </svg>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {nlpError && (
+                  <p className="gemini-review-error" role="alert">
+                    {nlpError}
+                  </p>
+                )}
+
+                {nlpResult && (
+                  <div className="gemini-review-result" aria-live="polite">
+                    <p>
+                      <strong>Predicted category:</strong>{' '}
+                      {nlpResult.predicted_category.replace(/_/g, ' ')}
+                    </p>
+                    <p>
+                      <strong>Model confidence:</strong>{' '}
+                      {(nlpResult.confidence * 100).toFixed(1)}%
+                    </p>
+                    <p>
+                      <strong>Model version:</strong>{' '}
+                      {nlpResult.model_version || 'Unknown'}
+                    </p>
+                    <small>
+                      This is a model prediction, not a confirmed diagnosis of the hazard.
+                      Staff must review the report. Do not delay emergency action while
+                      waiting for classification.
+                    </small>
+                  </div>
                 )}
               </section>
             </div>

@@ -1179,3 +1179,61 @@
     animation: none;
   }
 }
+
+/* Python NLP Classification — synchronized with SLA ribbon */
+.nlp-classification-card {
+  padding: 0.65rem 0.85rem;
+  background: var(--as-surface-alt);
+  border: 1px solid var(--as-line);
+  border-radius: var(--as-radius-md);
+  color: var(--as-ink);
+  overflow-wrap: anywhere;
+}
+
+.nlp-classification-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.nlp-classification-card__label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--as-muted);
+  letter-spacing: normal;
+}
+
+.nlp-classification-card__status {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--as-muted);
+}
+
+.nlp-classification-card p {
+  margin: 0.2rem 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--as-ink);
+  text-transform: none;
+}
+
+.nlp-classification-card p strong {
+  font-weight: 700;
+}
+
+.nlp-classification-card small {
+  display: block;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--as-line);
+  color: var(--as-muted);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+}
+
+.nlp-classification-card__empty {
+  color: var(--as-muted) !important;
+}

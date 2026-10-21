@@ -4,7 +4,14 @@ import './SafetyDashboard.css';
 import TierSummaryPanel from './TierSummaryPanel';
 import RepeatReportPanel from './RepeatReportPanel';
 
-const getProfile = (incident) => incident.riskProfile || classifyIncident(incident.desc);
+const getProfile = (incident) => {
+  const classified = classifyIncident(incident.desc);
+  return {
+    ...classified,
+    ...incident.riskProfile,
+    escalateMinutes: incident.riskProfile?.escalateMinutes ?? classified.escalateMinutes,
+  };
+};
 
 const initials = (name = 'Unassigned') => {
   if (!name || name === 'Unassigned') return '--';
@@ -33,11 +40,13 @@ function IncidentCard({ incident, onClaim, onRespond, onVerify, now, variant = '
   const deadline = hasSla ? incident.time + profile.interveneMinutes * 60000 : null;
   const left = deadline === null ? null : deadline - now;
   const isFinished = incident.status === 'Responded' || incident.status === 'Resolved';
+  const requiresResolution = ['Low', 'Moderate', 'Medium'].includes(incident.risk);
   const overdue = hasSla && left <= 0 && !isFinished;
 
   const escalateDuration = profile.escalateMinutes ? profile.escalateMinutes * 60000 : null;
   const escalationDue = escalateDuration ? incident.time + escalateDuration : null;
-  const escalated = escalationDue && now >= escalationDue && !isFinished;
+  const escalated = escalationDue && now >= escalationDue && incident.status !== 'Resolved'
+    && (requiresResolution || !isFinished || incident.executiveEscalatedAt);
 
   const riskKey = (incident.risk || 'Low').toLowerCase();
 
@@ -65,6 +74,52 @@ function IncidentCard({ incident, onClaim, onRespond, onVerify, now, variant = '
           </svg>
           <span>{incident.location}</span>
         </p>
+
+        {/* Python NLP classification — informational only */}
+        <section
+          className="nlp-classification-card"
+          aria-label="Python NLP hazard classification"
+        >
+          <div className="nlp-classification-card__header">
+            <span className="nlp-classification-card__label">
+              PYTHON NLP CLASSIFICATION
+            </span>
+            <span className="nlp-classification-card__status">
+              {incident.nlpResult ? 'Prediction available' : 'Not classified'}
+            </span>
+          </div>
+
+          {incident.nlpResult ? (
+            <>
+              <p>
+                <strong>Predicted category:</strong>{' '}
+                {(incident.nlpResult.predicted_category || 'Unknown')
+                  .replace(/_/g, ' ')}
+              </p>
+
+              <p>
+                <strong>Model confidence:</strong>{' '}
+                {Number.isFinite(incident.nlpResult.confidence)
+                  ? `${(incident.nlpResult.confidence * 100).toFixed(1)}%`
+                  : 'Unavailable'}
+              </p>
+
+              <p>
+                <strong>Model version:</strong>{' '}
+                {incident.nlpResult.model_version || 'Unknown'}
+              </p>
+            </>
+          ) : (
+            <p className="nlp-classification-card__empty">
+              No NLP prediction was saved for this incident.
+            </p>
+          )}
+
+          <small>
+            Informational prediction only. Follow operational risk protocols
+            and never delay emergency action while awaiting classification.
+          </small>
+        </section>
 
         {incident.image && (
           <div className="card-media-shell">
@@ -94,7 +149,7 @@ function IncidentCard({ incident, onClaim, onRespond, onVerify, now, variant = '
           <div className={`escalation-pill ${escalated ? 'is-escalated' : ''}`}>
             <span className="escalation-dot" />
             <span>
-              {escalated ? 'Executive Escalation Dispatched' : `Escalation in ${formatRemaining(escalationDue - now)}`}
+              {escalated ? 'Executive Escalation Dispatched' : `Executive escalation in ${formatRemaining(escalationDue - now)}`}
             </span>
           </div>
         )}
@@ -155,6 +210,19 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const dueIds = new Set(incidents.filter((item) => {
+      const minutes = getProfile(item).escalateMinutes;
+      return item.status !== 'Resolved' && !item.executiveEscalatedAt && Number.isFinite(minutes)
+        && now >= item.time + minutes * 60000;
+    }).map((item) => item.id));
+    if (dueIds.size) {
+      setIncidents((items) => items.map((item) => dueIds.has(item.id) && !item.executiveEscalatedAt
+        ? { ...item, executiveEscalatedAt: now }
+        : item));
+    }
+  }, [incidents, now, setIncidents]);
 
   const resetModal = () => {
     setVerifyModal(null);
@@ -223,7 +291,10 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
   const active = useMemo(() => incidents.filter((item) => item.status !== 'Resolved'), [incidents]);
 
   const urgentIncident = useMemo(() => {
-    return active
+    const candidates = role === 'Executive'
+      ? active.filter((item) => item.executiveEscalatedAt || (getProfile(item).escalateMinutes && now >= item.time + getProfile(item).escalateMinutes * 60000))
+      : active;
+    return candidates
       .filter((i) => i.status !== 'Responded')
       .filter((i) => i.risk !== 'Unclear')
       .sort((a, b) => {
@@ -231,24 +302,29 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
         const pB = getProfile(b).priority ?? 9;
         return pA - pB || a.time - b.time;
       })[0] || null;
-  }, [active]);
+  }, [active, now, role]);
 
   const escalated = useMemo(
     () =>
       active.filter((item) => {
         const profile = getProfile(item);
         return (
-          profile.escalateMinutes &&
-          now >= item.time + profile.escalateMinutes * 60000 &&
-          item.status !== 'Responded'
+          (item.executiveEscalatedAt || (profile.escalateMinutes && now >= item.time + profile.escalateMinutes * 60000)) &&
+          item.status !== 'Resolved'
         );
       }),
     [active, now]
   );
 
+  const visibleIncidents = role === 'Executive'
+    ? incidents.filter((item) => item.status === 'Resolved'
+      || item.executiveEscalatedAt
+      || (getProfile(item).escalateMinutes && now >= item.time + getProfile(item).escalateMinutes * 60000))
+    : incidents;
+
   const highCriticalCount = useMemo(
-    () => active.filter((item) => ['High', 'Critical'].includes(item.risk)).length,
-    [active]
+    () => role === 'Executive' ? escalated.length : active.filter((item) => ['High', 'Critical'].includes(item.risk)).length,
+    [active, escalated, role]
   );
 
   const resolvedCount = useMemo(
@@ -289,9 +365,11 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
             <span className="kicker-sep">•</span>
             <span className="kicker-sub">REAL-TIME RISK TRIAGE</span>
           </div>
-          <h1 className="header-primary-title">Operational Safety Intelligence</h1>
+          <h1 className="header-primary-title">{role === 'Executive' ? 'Executive Escalation Oversight' : 'Staff Response Operations'}</h1>
           <p className="header-sub-copy">
-            Priority-tiered dispatch matrix. Immediate life-safety items take top routing precedence.
+            {role === 'Executive'
+            ? 'Review cases escalated after a staff SLA breach, and keep resolved tickets in the case history.'
+              : 'Claim reports, dispatch the assigned teams, and record intervention or verified resolution before the risk SLA expires.'}
           </p>
         </div>
 
@@ -312,15 +390,17 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
         <div className={`kpi-hero-card ${highCriticalCount > 0 ? 'kpi-hero-active' : ''}`}>
           <div className="kpi-hero-head">
             <div>
-              <span className="kpi-hero-label">HIGH &amp; CRITICAL DISPATCH</span>
-              <span className="kpi-hero-sub">Immediate action required</span>
+              <span className="kpi-hero-label">{role === 'Executive' ? 'ESCALATED INCIDENTS' : 'HIGH &amp; CRITICAL DISPATCH'}</span>
+              <span className="kpi-hero-sub">{role === 'Executive' ? 'Staff deadline breached' : 'Immediate action required'}</span>
             </div>
             <span className="kpi-hero-badge">{highCriticalCount > 0 ? 'ACTION NEEDED' : 'NOMINAL'}</span>
           </div>
           <div className="kpi-hero-body">
             <span className="kpi-hero-number">{String(highCriticalCount).padStart(2, '0')}</span>
             <div className="kpi-hero-desc">
-              <strong>{highCriticalCount} urgent incident{highCriticalCount === 1 ? '' : 's'}</strong> active across property sectors. P1/P2 response clocks ticking.
+              {role === 'Executive'
+                ? <><strong>{highCriticalCount} escalated case{highCriticalCount === 1 ? '' : 's'}</strong> need executive oversight.</>
+                : <><strong>{highCriticalCount} urgent incident{highCriticalCount === 1 ? '' : 's'}</strong> active across property sectors. P1/P2 response clocks ticking.</>}
             </div>
           </div>
         </div>
@@ -338,11 +418,11 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
 
         <div className="kpi-card-subtle">
           <div className="subtle-label-row">
-            <span>Total Open Tickets</span>
+            <span>{role === 'Executive' ? 'Escalated Cases' : 'Total Open Tickets'}</span>
             <span className="subtle-indicator bg-info" />
           </div>
-          <span className="subtle-number">{String(active.length).padStart(2, '0')}</span>
-          <span className="subtle-note">Across all risk tiers</span>
+          <span className="subtle-number">{String(role === 'Executive' ? escalated.length : active.length).padStart(2, '0')}</span>
+          <span className="subtle-note">{role === 'Executive' ? 'Awaiting executive oversight' : 'Across all risk tiers'}</span>
         </div>
 
         <div className="kpi-card-subtle">
@@ -355,8 +435,11 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
         </div>
       </section>
 
-      <TierSummaryPanel incidents={incidents} tierSummary={tierSummary} onTierSummaryChange={onTierSummaryChange} />
-      <RepeatReportPanel incidents={incidents} />
+      {role !== 'Executive' && <TierSummaryPanel incidents={incidents} tierSummary={tierSummary} onTierSummaryChange={onTierSummaryChange} />}
+      {role !== 'Executive' && <RepeatReportPanel incidents={incidents} />}
+      {role === 'Executive' && escalated.length === 0 && (
+        <div className="empty-lane-callout">No incidents have breached their staff response or resolution SLA.</div>
+      )}
 
       {/* Immediate Attention Hero Spotlight */}
       {urgentIncident && (
@@ -427,10 +510,10 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
           <h2 className="board-primary-heading">
             {viewMode === 'priority' ? 'Priority Urgency Matrix' : 'Pipeline Stage Workflow'}
           </h2>
-          <span className="board-total-count">{active.length} active tickets</span>
+          <span className="board-total-count">{role === 'Executive' ? visibleIncidents.length : active.length} {role === 'Executive' ? 'escalated cases' : 'active tickets'}</span>
         </div>
 
-        <div className="view-mode-segmented">
+        {role !== 'Executive' && <div className="view-mode-segmented">
           <button
             type="button"
             className={`view-segment-btn ${viewMode === 'priority' ? 'is-active' : ''}`}
@@ -454,11 +537,11 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
             </svg>
             Pipeline Status View
           </button>
-        </div>
+        </div>}
       </section>
 
       {/* VIEW 1: PRIORITY HIERARCHY MATRIX */}
-      {viewMode === 'priority' && (
+      {viewMode === 'priority' && role !== 'Executive' && (
         <div className="priority-hierarchy-container">
           {reviewTier.length > 0 && (
             <div className="hierarchy-lane lane-review">
@@ -580,10 +663,10 @@ export default function SafetyDashboard({ incidents, setIncidents, currentRole =
       )}
 
       {/* VIEW 2: PIPELINE STAGES */}
-      {viewMode === 'pipeline' && (
+      {(viewMode === 'pipeline' || role === 'Executive') && (
         <div className="pipeline-kanban-flow">
           {pipelineStages.map((status) => {
-            const columnItems = incidents
+            const columnItems = visibleIncidents
               .filter((item) => item.status === status)
               .sort((a, b) => (getProfile(a).priority ?? 9) - (getProfile(b).priority ?? 9) || a.time - b.time);
 

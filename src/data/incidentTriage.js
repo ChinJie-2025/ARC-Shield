@@ -1,8 +1,8 @@
 const TEAM_ROUTING = {
-  Low: ['Security', 'Entry-level Management', 'SHO'],
-  Moderate: ['Security', 'Entry-level Management', 'Mid-level Management', 'SHO'],
-  High: ['Security', 'Entry and Mid-level Management', 'SHO', 'Head of HSSE'],
-  Critical: ['Security', 'Entry and Mid-level Management', 'MERS 999', 'SHO', 'Head of HSSE'],
+  Low: ['Security', 'Entry-level Management', 'SHOs'],
+  Moderate: ['Security', 'Entry-level Management', 'Mid-level Management', 'SHOs'],
+  High: ['Security', 'Entry and Mid-level Management', 'SHOs', 'Head of HSSE', 'C-level if intervention SLA is missed'],
+  Critical: ['Security', 'Entry and Mid-level Management', 'MERS 999', 'SHOs', 'Head of HSSE', 'C-level if intervention is not started within 5 minutes'],
 };
 
 const profiles = {
@@ -13,9 +13,9 @@ const profiles = {
     escalateMinutes: null,
     sla: 'Set after an operator identifies the hazard',
   },
-  Low: { interveneMinutes: 4 * 60, settleMinutes: 24 * 60, sla: 'Intervene within 4 hours; settle within 4-24 hours', priority: 4, escalateMinutes: null },
-  Moderate: { interveneMinutes: 72 * 60, settleMinutes: 72 * 60, sla: 'Respond/settle within 72 hours', priority: 3, escalateMinutes: null },
-  ModerateWater: { interveneMinutes: 15, settleMinutes: 15, sla: 'Respond to water level issue within 15 minutes', priority: 2, escalateMinutes: null },
+  Low: { interveneMinutes: 4 * 60, settleMinutes: 24 * 60, sla: 'Intervene within 4 hours; settle within 4-24 hours', priority: 4, escalateMinutes: 24 * 60 },
+  Moderate: { interveneMinutes: 72 * 60, settleMinutes: 72 * 60, sla: 'Respond/settle within 72 hours', priority: 3, escalateMinutes: 72 * 60 },
+  ModerateWater: { interveneMinutes: 15, settleMinutes: 15, sla: 'Respond to water level issue within 15 minutes', priority: 2, escalateMinutes: 15 },
   High: { interveneMinutes: 30, settleMinutes: 0, sla: 'Intervene within 30 minutes; settle ASAP', priority: 2, escalateMinutes: 30 },
   HighFlood: { interveneMinutes: 15, settleMinutes: 0, sla: 'Potential flood: intervene within 15 minutes; settle ASAP', priority: 2, escalateMinutes: 15 },
   Critical: { interveneMinutes: 5, settleMinutes: 0, sla: 'Respond and settle ASAP; executive escalation at 5 minutes', priority: 1, escalateMinutes: 5 },
@@ -91,6 +91,6 @@ export function classifyIncident(description = '') {
     reason: rule.reason,
     teams: TEAM_ROUTING[rule.risk],
     ...rule.profile,
-    escalationTarget: rule.risk === 'Critical' || rule.risk === 'High' ? 'C-level / Executive' : null,
+    escalationTarget: 'Executive',
   };
 }

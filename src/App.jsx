@@ -17,24 +17,24 @@ export default function App() {
     try {
       const savedUser = localStorage.getItem('arc_shield_user');
       return savedUser
-        ? (() => { const user = JSON.parse(savedUser); return { ...user, role: user.role === 'Executive' ? 'Executive' : 'Resident' }; })()
+        ? (() => { const user = JSON.parse(savedUser); return { ...user, role: ['Executive', 'Staff'].includes(user.role) ? user.role : 'Resident/Visitor' }; })()
         : {
-            role: 'Resident',
-            name: 'Resident User',
+            role: 'Resident/Visitor',
+            name: 'Resident/Visitor User',
             id: 'RES-1001',
             avatar: 'RU',
           };
     } catch {
       return {
-        role: 'Resident',
-        name: 'Resident User',
+        role: 'Resident/Visitor',
+        name: 'Resident/Visitor User',
         id: 'RES-1001',
         avatar: 'RU',
       };
     }
   });
 
-  const [activeTab, setActiveTab] = useState(() => currentUser.role === 'Executive' ? 'dashboard' : 'report');
+  const [activeTab, setActiveTab] = useState(() => ['Executive', 'Staff'].includes(currentUser.role) ? 'dashboard' : 'report');
 
   const [incidents, setIncidents] = useState(() => {
     try {
@@ -89,7 +89,7 @@ export default function App() {
 
   const handleLoginSuccess = (userSession) => {
     setCurrentUser(userSession);
-    setActiveTab(userSession.role === 'Executive' ? 'dashboard' : 'report');
+    setActiveTab(['Executive', 'Staff'].includes(userSession.role) ? 'dashboard' : 'report');
     try {
       localStorage.setItem('arc_shield_user', JSON.stringify(userSession));
     } catch (err) {
@@ -109,7 +109,7 @@ export default function App() {
   };
 
   const handleNavigate = (tab) => {
-    const allowed = currentUser.role === 'Executive'
+    const allowed = ['Executive', 'Staff'].includes(currentUser.role)
       ? ['dashboard', 'map', 'flood']
       : ['report', 'map', 'flood'];
     if (allowed.includes(tab)) setActiveTab(tab);
@@ -126,7 +126,7 @@ export default function App() {
         riskProfile: {
           priority: 1,
           interveneMinutes: 5,
-          escalateMinutes: 10,
+          escalateMinutes: 5,
           sla: 'Immediate 5 min intervention',
           teams: ['Hydraulic Engineering', 'Perimeter Flood Response'],
         },
@@ -166,7 +166,7 @@ export default function App() {
       />
 
       <main className="app-content">
-        {activeTab === 'dashboard' && currentUser.role === 'Executive' && (
+        {activeTab === 'dashboard' && ['Executive', 'Staff'].includes(currentUser.role) && (
           <>
             <HomeHero
               activeIncidentCount={activeHazards.length}
@@ -188,11 +188,12 @@ export default function App() {
           </>
         )}
 
-        {activeTab === 'report' && currentUser.role !== 'Executive' && (
+        {activeTab === 'report' && !['Executive', 'Staff'].includes(currentUser.role) && (
           <>
             <HomeHero
               activeIncidentCount={activeHazards.length}
               residentView
+              residentLabel="Resident/Visitor"
               onReportIncident={() => document.getElementById('resident-report-anchor')?.scrollIntoView({ behavior: 'smooth' })}
               onExplore={() => handleNavigate('map')}
             />
