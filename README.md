@@ -14,6 +14,8 @@ The Render deployment must have `GEMINI_API_KEY` configured in its environment v
 
 Deploy ARC-Shield as a Render **Web Service** so one process can serve both the frontend and API. Use `npm install && npm run build` as the build command and `npm run api` as the start command. A Render Static Site only serves frontend files and will return 404 for `/api/health`.
 
+If the frontend is hosted separately as a Static Site, set `VITE_API_URL` on that site to the Web Service URL and set `APP_ORIGINS` on the Web Service to the exact frontend origin (for example, `https://arc-shield-1.onrender.com`, without a trailing slash). The API handles CORS preflight requests for that origin. Rebuild the Static Site after changing `VITE_API_URL`.
+
 For persistent incident storage on Render, create a Render Postgres database and set the web service's `DATABASE_URL` environment variable to the database's **internal connection URL**. Keep the database and web service in the same Render region, then redeploy. The API health endpoint reports `"storage":"postgres"` when connected. If `DATABASE_URL` is missing, the API uses a local JSON file, which Render does not preserve across restarts or deploys by default. See [Render Web Services](https://render.com/docs/web-services), [Render Postgres setup](https://render.com/docs/postgresql), and [Render filesystem behavior](https://render.com/docs/disks).
 
 ## What it does
@@ -96,6 +98,7 @@ GEMINI_API_KEY=your_key_here
 GEMINI_MODEL=gemini-3.8-flash
 API_PORT=3002
 DATABASE_URL=
+APP_ORIGINS=http://localhost:5173,https://arc-shield-1.onrender.com
 ```
 
 Keep the key in `.env`. Do not add it to frontend code or commit/share the file. Gemini is optional: rules-based triage and tier counts remain available without a key. Gemini-generated advice is an operator aid and requires human review. Avoid submitting personal or sensitive information because report descriptions and locations are sent to Google when Gemini is used.

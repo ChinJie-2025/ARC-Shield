@@ -95,6 +95,23 @@ async function readBody(request) {
 }
 
 const server = createServer(async (request, response) => {
+  const origin = request.headers.origin;
+  const allowedOrigins = (process.env.APP_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173')
+    .split(',').map((item) => item.trim()).filter(Boolean);
+  if (origin && !allowedOrigins.includes(origin)) {
+    return send(response, 403, { error: 'This website is not allowed to access the ARC-Shield API.' });
+  }
+  if (origin) {
+    response.setHeader('Access-Control-Allow-Origin', origin);
+    response.setHeader('Vary', 'Origin');
+    response.setHeader('Access-Control-Allow-Methods', 'GET, PUT, POST, OPTIONS');
+    response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  }
+  if (request.method === 'OPTIONS') {
+    response.writeHead(204);
+    return response.end();
+  }
+
   const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
   if (url.pathname === '/api/health' && request.method === 'GET') {
     return send(response, 200, {
